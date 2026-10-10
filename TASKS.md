@@ -15,4 +15,4 @@ Goal: measure how fast and how far non-sports Kalshi/Polymarket markets reprice 
 | 8 | First run on overnight data + placebo; summary table with CIs | builder | todo | `data/summary.md`; n per cell; honest verdict vs pass bar |
 | 9 | Verify 6 and 8 independently | verifier | todo | numbers within tolerance; no future leak |
 | 10 | Recorder kept alive overnight (caffeinate) and logged | orchestrator | todo | `data/recorder.log` shows continuous rows; row counts per hour |
-| 11 | Draft Kalshi research-permission email for Ayaan to send | orchestrator | todo | `research/kalshi-permission-email.md`, ready to paste |
+| 11 | Draft Kalshi research-permission email for Ayaan to send | orchestrator | done | `research/kalshi-permission-email.md`, ready to paste |
