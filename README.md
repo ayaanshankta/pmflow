@@ -16,3 +16,10 @@ python3 collect.py --once
 cd ~/Downloads/pmflow && nohup /opt/anaconda3/bin/python3 collect.py --loop 15 > data/collect.log 2>&1 &
 python3 -m pytest test_collect.py
 ```
+## Recorder
+```
+/opt/anaconda3/bin/python3 universe.py                      # refresh data/universe_polymarket.parquet (daily)
+nohup /opt/anaconda3/bin/python3 record_polymarket.py > data/recorder.stdout 2>&1 &   # 24/7; log in data/recorder.log
+```
+Rows: `data/tob/polymarket/{market_id}/date=YYYY-MM-DD.parquet`; resolved events: `data/resolved.jsonl`.
+Tests: `python test_universe.py && python test_record.py`.

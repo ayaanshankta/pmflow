@@ -4,3 +4,5 @@ data/*.parquet
 data/*.jsonl
 data/*.log
 *.pyc
+data/tob/
+data/conn_id.txt
