@@ -6,3 +6,4 @@ data/*.log
 *.pyc
 data/tob/
 data/conn_id.txt
+data/

@@ -22,10 +22,19 @@ health = subprocess.run([PY, "-W", "ignore", "gaps.py"], capture_output=True, te
 lines += ["", "## health (gaps.py)"] + [l for l in health if not l.startswith("/")]
 txt = "\n".join(lines) + "\n"
 open("data/summary.md", "w").write(txt); print(txt)
-# self-report: commit the summary to branch `desktop` and push (data/ is gitignored; results/ is not)
-import os; os.makedirs("results", exist_ok=True)
+# self-report: commit ONLY the results file onto origin/desktop with git plumbing (no branch switch, no working-tree change,
+# always a fast-forward); push. Falls back silently if the remote is unreachable.
+import os, tempfile
+os.makedirs("results", exist_ok=True)
 fn = f"results/pass-{datetime.now(timezone.utc):%Y%m%d-%H%M}Z.md"; open(fn, "w").write(txt)
-g = lambda *a: subprocess.run(["git", *a], check=False, capture_output=True, text=True)
-g("checkout", "-q", "-B", "desktop"); g("add", fn)
-g("-c", "user.name=AyaanShankta", "-c", "user.email=ayaanshankta08@gmail.com", "commit", "-q", "-m", f"pass {fn}")
-r = g("push", "-q", "-u", "origin", "desktop"); print("push:", "ok" if r.returncode == 0 else r.stderr.strip()[-200:])
+def g(*a, env=None):
+    return subprocess.run(["git", *a], capture_output=True, text=True, env={**os.environ, **(env or {})})
+g("fetch", "-q", "origin", "desktop")
+parent = "origin/desktop" if g("rev-parse", "--verify", "-q", "origin/desktop").returncode == 0 else "HEAD"
+idx = {"GIT_INDEX_FILE": os.path.join(tempfile.gettempdir(), "pmflow-pass.index")}
+g("read-tree", parent, env=idx)
+blob = g("hash-object", "-w", fn).stdout.strip()
+g("update-index", "--add", "--cacheinfo", f"100644,{blob},{fn}", env=idx)
+tree = g("write-tree", env=idx).stdout.strip()
+commit = g("-c", "user.name=AyaanShankta", "-c", "user.email=ayaanshankta08@gmail.com", "commit-tree", tree, "-p", parent, "-m", f"pass {fn}").stdout.strip()
+r = g("push", "-q", "origin", f"{commit}:refs/heads/desktop"); print("push:", "ok" if r.returncode == 0 else r.stderr.strip()[-200:])
