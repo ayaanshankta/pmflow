@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>Label</key><string>com.ayaan.pmflow.pass</string>
+  <key>ProgramArguments</key><array>
+    <string>/opt/anaconda3/bin/python3</string><string>-W</string><string>ignore</string><string>event_pass.py</string></array>
+  <key>WorkingDirectory</key><string>/Users/ayaanshankta/Downloads/pmflow</string>
+  <key>StartCalendarInterval</key><array>
+    <dict><key>Hour</key><integer>7</integer><key>Minute</key><integer>50</integer></dict>
+    <dict><key>Hour</key><integer>9</integer><key>Minute</key><integer>50</integer></dict>
+  </array>
+  <key>StandardOutPath</key><string>/Users/ayaanshankta/Downloads/pmflow/data/pass.log</string>
+  <key>StandardErrorPath</key><string>/Users/ayaanshankta/Downloads/pmflow/data/pass.log</string>
+</dict></plist>

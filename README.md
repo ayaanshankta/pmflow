@@ -44,3 +44,10 @@ nohup caffeinate -i /opt/anaconda3/bin/python3 -W ignore collect.py --loop 15 > 
 /opt/anaconda3/bin/python3 -W ignore run_reactions.py  # reactions + placebo -> data/reactions.parquet + summary
 /opt/anaconda3/bin/python3 -m pytest -q                # tests
 ```
+
+## Scheduled pass (CPI Tue 10-14, PPI Wed 10-15, 8:30 ET)
+`event_pass.py` maps window events, measures reactions vs placebo, writes `data/summary.md`. Load the launchd job once
+(runs 07:50 and 09:50 CDT daily, i.e. 20 min and 2 h 20 min after the 8:30 ET prints):
+```
+cp ~/Downloads/pmflow/com.ayaan.pmflow.pass.plist ~/Library/LaunchAgents/ && launchctl load ~/Library/LaunchAgents/com.ayaan.pmflow.pass.plist
+```
