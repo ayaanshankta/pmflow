@@ -31,7 +31,7 @@ and Thursday's PPI (12:30 UTC). What the night did produce:
 - **Rule change before any real event was measured:** a standing quote is the price until changed (STALE 60 s → 3600 s);
   see DECISIONS.
 
-What decides the question: the Tuesday/Wednesday prints and any Fed/political headline during US hours. The pre-registered
+What decides the question: the Wednesday/Thursday prints and any Fed/political headline during US hours. The pre-registered
 pass bar (DECISIONS) is unchanged.
 
 ## Repro
