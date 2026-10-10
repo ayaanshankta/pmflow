@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from reaction import load_tob, measure, placebo_times
+from reaction import STALE, load_tob, measure, placebo_times
 from run_reactions import boot, run, summary
 
 S = 1_000_000_000
@@ -63,13 +63,13 @@ def test_t_reprice():
 def test_stale_and_empty():
     m = measure(frame(ts[ts <= 120]), T0)                               # quotes stop at t0+2 min
     assert math.isclose(m["dp_1m"], STEP) and all(math.isnan(m[f"dp_{h}"]) for h in ("5m", "15m", "60m"))
-    gap = ts[(ts < -61) | (ts > 0)]                                     # last quote at/before t0 is 62 s old
+    gap = ts[(ts < -(STALE + 1)) | (ts > 0)]                           # last quote at/before t0 is STALE+2 s old
     assert all(math.isnan(v) for v in measure(frame(gap), T0).values())
-    assert measure(frame(ts[(ts < -59) | (ts > 0)]), T0)["mid0"] == 0.5
+    assert measure(frame(ts[(ts < -(STALE - 1)) | (ts > 0)]), T0)["mid0"] == 0.5
     assert all(math.isnan(v) for v in measure(frame([]), T0).values())
-    # stale quote after the step: step happens, but the only post-t0 quotes are > 60 s old at t0+60m
+    # standing quote after the step: the 37 s quote is still the price at t0+5m (STALE=3600, DECISIONS 2026-10-10)
     m = measure(frame(np.r_[np.arange(-60, 0, 1.0), [10.0, 37.0]], step_s=37), T0)
-    assert m["t_reprice_s"] == 37.0 and math.isnan(m["dp_5m"])
+    assert m["t_reprice_s"] == 37.0 and math.isclose(m["dp_5m"], STEP)
 
 
 def test_load_tob_path_and_midnight():
