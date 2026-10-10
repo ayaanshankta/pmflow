@@ -65,7 +65,7 @@ def test_stale_and_empty():
     assert all(math.isclose(m[f"dp_{h}"], STEP) for h in ("1m", "5m", "15m", "60m"))  # standing quote (STALE=3600)
     gap = ts[(ts < -(STALE + 1)) | (ts > 0)]                           # last quote at/before t0 is STALE+2 s old
     assert all(math.isnan(v) for v in measure(frame(gap), T0).values())
-    assert measure(frame(ts[(ts < -(STALE - 1)) | (ts > 0)]), T0)["mid0"] == 0.5
+    assert measure(frame(np.r_[[-(STALE - 1.0)], ts[ts > 0]]), T0)["mid0"] == 0.5   # one quote STALE-1 s old is still the price
     assert all(math.isnan(v) for v in measure(frame([]), T0).values())
     # standing quote after the step: the 37 s quote is still the price at t0+5m (STALE=3600, DECISIONS 2026-10-10)
     m = measure(frame(np.r_[np.arange(-60, 0, 1.0), [10.0, 37.0]], step_s=37), T0)
