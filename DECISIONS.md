@@ -35,3 +35,4 @@ reaction measurement (reaction.py, test_reaction.py copied at newsflow b4f8f31).
 
 ## Mistakes
 (none yet)
+- 2026-10-10: newsflow lead confirmed reaction.py unchanged since d6db4d8 (vol_pre load window t0-16 min) and "Reaction windows" unchanged; newsflow tree clean at 40d3253. Builders/verifiers run on Sonnet (Ayaan: usage limits); researchers on Opus.
