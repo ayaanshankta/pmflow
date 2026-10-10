@@ -9,8 +9,8 @@ Legal: Kalshi is excluded until written permission (its Developer Agreement bars
 ## Result so far (first night + morning, 2026-10-10 03:06–09:15 CDT)
 
 **No news-reaction number yet.** 375k quote rows recorded over 6 h on 200 markets, but only 3 news events (crypto articles) fell
-inside the window and the mapper judged none of them to touch a recorded market. The first measurable events are Tuesday's CPI
-and Wednesday's PPI (12:30 UTC). What the night did produce:
+inside the window and the mapper judged none of them to touch a recorded market. The first measurable events are Wednesday's CPI
+and Thursday's PPI (12:30 UTC). What the night did produce:
 
 - **Recorder (verified independently):** 200 markets, 270,947 rows 08:06–12:12 UTC (~1,000 rows/min), timestamps monotone,
   0 duplicates, 0 empty minutes, 4 reconnects with gaps of 0.5–8 s, mids within 0.0005 of the live API. Flags: 10.5 % of rows
@@ -22,7 +22,7 @@ and Wednesday's PPI (12:30 UTC). What the night did produce:
   points (n ≈ 309). Windows spanning a reconnect are NaN'd, so ~10 % is a lower bound (17 % among reconnect-free windows).
   Overnight these markets are mostly static; the lag question can only be answered around US-hours events.
 - **Events collected:** 184 (BLS/BEA schedules, Fed press releases + speeches, SEC 8-K filings, 3 crypto feeds); the first
-  scheduled events inside the window are **CPI Tue Oct 14 and PPI Wed Oct 15, both 12:30 UTC**.
+  scheduled events inside the window are **CPI Wed Oct 14 and PPI Thu Oct 15, both 12:30 UTC**.
 - **Mapping:** 86 LLM calls (Haiku), 100 % parsed, $0.04 — but every directional mapping was feed backfill from before the
   recorder started (several plainly wrong, e.g. January recaps mapped to Oct-10 BTC markets at confidence 0.1–0.3). They are
   excluded; `map.py` now only maps events inside the recording window. **Directional events inside the window so far: 0.**
@@ -45,7 +45,7 @@ nohup caffeinate -i /opt/anaconda3/bin/python3 -W ignore collect.py --loop 15 > 
 /opt/anaconda3/bin/python3 -m pytest -q                # tests
 ```
 
-## Scheduled pass (CPI Tue 10-14, PPI Wed 10-15, 8:30 ET)
+## Scheduled pass (CPI Wed 10-14, PPI Thu 10-15, 8:30 ET)
 `event_pass.py` maps window events, measures reactions vs placebo, writes `data/summary.md`. Load the launchd job once
 (runs 07:50 and 09:50 CDT daily, i.e. 20 min and 2 h 20 min after the 8:30 ET prints):
 ```

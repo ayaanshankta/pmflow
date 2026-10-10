@@ -18,4 +18,14 @@ if len(j):
     e = j[["event_id", "t0_utc", "market_id", "direction", "source"]].assign(venue="polymarket")
     df = run(e, n_placebo=20, seed=0); df.to_parquet("data/reactions.parquet")
     lines += ["", "```", str(summary(df)), "```", "", j[["source", "t0_utc", "title", "direction", "confidence"]].to_string()]
-open("data/summary.md", "w").write("\n".join(lines) + "\n"); print("\n".join(lines))
+health = subprocess.run([PY, "-W", "ignore", "gaps.py"], capture_output=True, text=True).stdout.strip().splitlines()
+lines += ["", "## health (gaps.py)"] + [l for l in health if not l.startswith("/")]
+txt = "\n".join(lines) + "\n"
+open("data/summary.md", "w").write(txt); print(txt)
+# self-report: commit the summary to branch `desktop` and push (data/ is gitignored; results/ is not)
+import os; os.makedirs("results", exist_ok=True)
+fn = f"results/pass-{datetime.now(timezone.utc):%Y%m%d-%H%M}Z.md"; open(fn, "w").write(txt)
+g = lambda *a: subprocess.run(["git", *a], check=False, capture_output=True, text=True)
+g("checkout", "-q", "-B", "desktop"); g("add", fn)
+g("-c", "user.name=AyaanShankta", "-c", "user.email=ayaanshankta08@gmail.com", "commit", "-q", "-m", f"pass {fn}")
+r = g("push", "-q", "-u", "origin", "desktop"); print("push:", "ok" if r.returncode == 0 else r.stderr.strip()[-200:])
