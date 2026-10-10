@@ -11,7 +11,7 @@ Goal: measure how fast and how far non-sports Kalshi/Polymarket markets reprice 
 | 4 | `record_kalshi.py`: same for Kalshi non-sports | — | BLOCKED: Developer Agreement §3.1 (see DECISIONS); needs written permission | same bar |
 | 5 | `collect.py`: news with second-precision timestamps | builder-collect (Sonnet) | done (merged; 4 tests; loop running from ~/Downloads/pmflow) | `data/events.parquet`; 10 rows spot-checked vs source |
 | 6 | `reaction.py` adapted: load from pmflow tob, delta_p, time-to-reprice; placebo | builder-reaction (Sonnet) | done (2c6b7bc, merged; 7 tests) | `test_reaction.py` passes on synthetic known answers incl. time-to-reprice |
-| 7 | `LABELS.md` + `map.py`: headline -> market ids + direction (LLM) + keyword baseline | builder | todo | 10-headline smoke test: parse rate, cost |
+| 7 | `LABELS.md` + `map.py` headline->market mapper | builder-map (Sonnet) | done (merged; 4 tests; smoke 10/10 $0.005) | 10-headline smoke test: parse rate, cost |
 | 8 | First run on overnight data + placebo; summary table with CIs | builder | todo | `data/summary.md`; n per cell; honest verdict vs pass bar |
 | 9 | Verify 6 and 8 independently | verifier | todo | numbers within tolerance; no future leak |
 | 10 | Recorder + collector alive overnight (caffeinate) | orchestrator | running since 03:12 CDT | `data/recorder.log` shows continuous rows; row counts per hour |
