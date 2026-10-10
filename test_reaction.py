@@ -62,7 +62,7 @@ def test_t_reprice():
 
 def test_stale_and_empty():
     m = measure(frame(ts[ts <= 120]), T0)                               # quotes stop at t0+2 min
-    assert math.isclose(m["dp_1m"], STEP) and all(math.isnan(m[f"dp_{h}"]) for h in ("5m", "15m", "60m"))
+    assert all(math.isclose(m[f"dp_{h}"], STEP) for h in ("1m", "5m", "15m", "60m"))  # standing quote (STALE=3600)
     gap = ts[(ts < -(STALE + 1)) | (ts > 0)]                           # last quote at/before t0 is STALE+2 s old
     assert all(math.isnan(v) for v in measure(frame(gap), T0).values())
     assert measure(frame(ts[(ts < -(STALE - 1)) | (ts > 0)]), T0)["mid0"] == 0.5
