@@ -1,25 +1,38 @@
 # pmflow — do prediction markets lag the news?
 
-Records top-of-book on non-sports Kalshi and Polymarket markets 24/7, timestamps news to the second, maps each headline to the
-contracts it touches, and measures time-to-reprice and the move at 1/5/15/60 min against a placebo. Methodology ported from
-`~/Downloads/newsflow` (verified). Paper only. Rules and pass bar: `DECISIONS.md`. Live plan: `TASKS.md`.
+Records top-of-book on the 200 most-active non-sports Polymarket markets 24/7, timestamps news to the second, maps each
+headline to the contracts it touches, and measures time-to-reprice and the move at 1/5/15/60 min against a placebo.
+Methodology ported from `~/Downloads/newsflow` (verified). Paper only. Rules and pass bar: `DECISIONS.md`. Plan: `TASKS.md`.
+Legal: Kalshi is excluded until written permission (its Developer Agreement bars storing/sharing API data; draft request in
+`research/kalshi-permission-email.md`). Polymarket data is public/on-chain; its Terms of Use are still to be read.
 
-Results: (none yet)
+## Result so far (first night, 2026-10-10 03:06–07:30 CDT)
 
-## collect.py (task 5) — events -> data/events.parquet
-Columns: event_id, source, t0_utc, first_seen_utc, title, url, kind (scheduled|release|filing|article). Append-only, dedup by event_id.
-Sources: BLS + BEA ICS (ET->UTC, next 14 days, re-polled every 10 min), Fed RSS x3, SEC 8-K Atom, Cointelegraph/Decrypt/The Block RSS.
-`first_seen_utc` of rows from the very first poll is the poll time, not a real arrival time (backlog) — only rows first seen
-at t0 + small lag in later polls are valid for lag questions. Fed pubDate is minute precision.
+**No news-reaction number yet: no mapped news event fell inside the recording window overnight.** What the night did produce:
+
+- **Recorder:** 200 markets, ~264k top-of-book rows in the first 4 h (~800–1,000 rows/min), 3 server-side disconnects
+  (reconnected within seconds, new `conn_id` each time). (verification pending)
+- **Overnight liveness (placebo, 40 most-active markets × 10 random times, 08:10–11:50 UTC):** at a random moment only
+  **11 %** of markets moved by ≥ 1 tick (0.01) within the next 60 min; among those that moved, the median wait was **663 s**.
+  Mean |move| at 15 min: 0.0013 probability points (n = 309 windows). Overnight these markets are mostly static, so the
+  lag question can only be answered around US-hours events. (verification pending)
+- **Events collected:** 184 (BLS/BEA schedules, Fed press releases + speeches, SEC 8-K filings, 3 crypto feeds); the first
+  scheduled events inside the window are **CPI Tue Oct 14 and PPI Wed Oct 15, both 12:30 UTC**.
+- **Mapping:** 86 LLM calls (Haiku), 100 % parsed, $0.04; most crypto headlines judged unrelated to the 200-market universe;
+  scheduled CPI/PPI map to 5 markets each with direction "none" (correct before the print).
+- **Rule change before any real event was measured:** a standing quote is the price until changed (STALE 60 s → 3600 s);
+  see DECISIONS.
+
+What decides the question: the Tuesday/Wednesday prints and any Fed/political headline during US hours. The pre-registered
+pass bar (DECISIONS) is unchanged.
+
+## Repro
 ```
-python3 collect.py --once
-cd ~/Downloads/pmflow && nohup /opt/anaconda3/bin/python3 collect.py --loop 15 > data/collect.log 2>&1 &
-python3 -m pytest test_collect.py
+cd ~/Downloads/pmflow
+/opt/anaconda3/bin/python3 -W ignore universe.py                                   # refresh the 200-market universe
+nohup caffeinate -i /opt/anaconda3/bin/python3 -W ignore record_polymarket.py > data/recorder.stdout 2>&1 &   # log: data/recorder.log
+nohup caffeinate -i /opt/anaconda3/bin/python3 -W ignore collect.py --loop 15 > data/collect.log 2>&1 &
+/opt/anaconda3/bin/python3 -W ignore map.py            # headline -> markets (Haiku via claude -p; cap $0.50/run)
+/opt/anaconda3/bin/python3 -W ignore run_reactions.py  # reactions + placebo -> data/reactions.parquet + summary
+/opt/anaconda3/bin/python3 -m pytest -q                # tests
 ```
-## Recorder
-```
-/opt/anaconda3/bin/python3 universe.py                      # refresh data/universe_polymarket.parquet (daily)
-nohup /opt/anaconda3/bin/python3 record_polymarket.py > data/recorder.stdout 2>&1 &   # 24/7; log in data/recorder.log
-```
-Rows: `data/tob/polymarket/{market_id}/date=YYYY-MM-DD.parquet`; resolved events: `data/resolved.jsonl`.
-Tests: `python test_universe.py && python test_record.py`.
