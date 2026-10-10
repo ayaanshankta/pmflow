@@ -1,4 +1,4 @@
-"""Top-N non-sports, active, order-book-enabled Polymarket markets by liquidity -> data/universe_polymarket.parquet.
+"""Top-N non-sports, active, order-book-enabled Polymarket markets by volume24hr (activity; DECISIONS 2026-10-10) -> data/universe_polymarket.parquet.
 Sports exclusion rule is the SPORTS regex below (tags + event title/slug + question), committed before recording starts."""
 import json, re, datetime as dt
 import pandas as pd, requests
@@ -59,7 +59,7 @@ def build(events, sport_ids=frozenset()):
                 category="|".join(labels), cat1=next((l for l in labels if l not in GENERIC and not l.startswith(("Earn", "Rewards"))), "none"),
                 liquidity=float(m.get("liquidityNum") or m.get("liquidity") or 0),
                 volume24hr=float(m.get("volume24hr") or 0), end_date=m.get("endDate"), fetched_utc=now))
-    df = pd.DataFrame(rows).drop_duplicates("market_id").sort_values("liquidity", ascending=False)
+    df = pd.DataFrame(rows).drop_duplicates("market_id").sort_values("volume24hr", ascending=False)
     return df, n_sports
 
 if __name__ == "__main__":
