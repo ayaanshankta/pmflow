@@ -14,7 +14,7 @@ ROOT = Path(__file__).parent / "data/tob"
 S = 1_000_000_000  # ns per second
 HORIZONS = {"1m": 60, "5m": 300, "15m": 900, "60m": 3600}  # seconds
 WIN = 900       # pre/post window length, s
-STALE = 60      # a quote older than this is not "the price now", s
+STALE = 3600    # DECISIONS 2026-10-10 07:15: a standing Polymarket quote is valid until changed; 60 s was a crypto-rate rule
 TICK = 0.01     # time-to-reprice threshold, probability points
 KEYS = ["mid0"] + [f"dp_{h}" for h in HORIZONS] + ["t_reprice_s"] + [
     f"{m}_{w}" for m in ("spread", "rate", "vol") for w in ("pre", "post")] + ["conn_break"]
