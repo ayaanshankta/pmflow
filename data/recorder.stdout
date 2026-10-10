@@ -423,3 +423,7 @@ ws unavailable -> REST polling /books for 60s then retry ws
 rows/min=204 conn_id=8 flush_s=173.95
 ws connected conn_id=9 tokens=200
 rows/min=843 conn_id=9 flush_s=69.68
+rows/min=855 conn_id=9 flush_s=0.69
+rows/min=610 conn_id=9 flush_s=0.38
+rows/min=461 conn_id=9 flush_s=0.39
+rows/min=371 conn_id=9 flush_s=4.41
