@@ -60,7 +60,7 @@ def parse_rss(text, source, kind):
         key = (it.findtext("guid") or url).strip()
         t0 = utc(pd.Timestamp(parsedate_to_datetime(pub.strip())))
         rows.append(dict(event_id=eid(source, key), source=source, t0_utc=t0, kind=kind,
-                         title=clean(it.findtext("title")), url=url.split("#")[0]))
+                         title=clean(it.findtext("title")), url=re.split(r"[?#]", url)[0]))
     return rows
 
 def parse_atom(text, source, kind):
