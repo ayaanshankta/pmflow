@@ -138,9 +138,9 @@ def llm_map(row, cand):
 def run(keyword_only, limit, out=OUT, universe=None, events=None):
     method = "keyword" if keyword_only else "llm"
     universe = universe if universe is not None else pd.read_parquet(os.path.join(D, "universe_polymarket.parquet"))
-    events = events if events is not None else pd.read_parquet(os.path.join(D, "events.parquet"))
-    # DECISIONS 2026-10-10: only events inside the recording window are mapped (feed backfill was mapping Jan-2026 recaps to Oct markets)
-    events = events[pd.to_datetime(events.t0_utc, utc=True) >= pd.Timestamp(RECORD_START, tz="UTC")]
+    if events is None:  # DECISIONS 2026-10-10: only events inside the recording window are mapped (backfill mapped Jan recaps to Oct markets)
+        events = pd.read_parquet(os.path.join(D, "events.parquet"))
+        events = events[pd.to_datetime(events.t0_utc, utc=True) >= pd.Timestamp(RECORD_START, tz="UTC")]
     old = pd.read_parquet(out) if os.path.exists(out) else pd.DataFrame(
         columns=["event_id", "market_id", "direction", "confidence", "method", "mapped_utc"])
     done = set(old[old.method == method].event_id)
