@@ -37,3 +37,5 @@ reaction measurement (reaction.py, test_reaction.py copied at newsflow b4f8f31).
 (none yet)
 - 2026-10-10: newsflow lead confirmed reaction.py unchanged since d6db4d8 (vol_pre load window t0-16 min) and "Reaction windows" unchanged; newsflow tree clean at 40d3253. Builders/verifiers run on Sonnet (Ayaan: usage limits); researchers on Opus.
 - 2026-10-10 (pm-api-scope): Kalshi Developer Agreement v1.1 §3/§3.1 limit API use to the member's own trading and bar storing/sharing data without written authorization; §6.4 bars public statements without approval. DECISION: tonight is POLYMARKET-ONLY. No Kalshi recording (REST or websocket) until Ayaan has written permission from Kalshi; task 4 blocked; a permission-request email is drafted for him instead.
+- 2026-10-10 02:55 CDT: Polymarket Terms of Use could not be read (client-rendered; empty accessibility tree in Chrome). Redistribution rights unknown; recording for a private study proceeds; selling/publishing waits on reading the ToS. Kalshi blocked (above).
+- Usage credits expected to lapse ~03:20 CDT and reset ~07:00; one-shot wake-ups set for 07:06 and 07:39 CDT to resume.
