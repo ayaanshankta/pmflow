@@ -6,9 +6,11 @@ Methodology ported from `~/Downloads/newsflow` (verified). Paper only. Rules and
 Legal: Kalshi is excluded until written permission (its Developer Agreement bars storing/sharing API data; draft request in
 `research/kalshi-permission-email.md`). Polymarket data is public/on-chain; its Terms of Use are still to be read.
 
-## Result so far (first night, 2026-10-10 03:06–07:30 CDT)
+## Result so far (first night + morning, 2026-10-10 03:06–09:15 CDT)
 
-**No news-reaction number yet: no mapped news event fell inside the recording window overnight.** What the night did produce:
+**No news-reaction number yet.** 375k quote rows recorded over 6 h on 200 markets, but only 3 news events (crypto articles) fell
+inside the window and the mapper judged none of them to touch a recorded market. The first measurable events are Tuesday's CPI
+and Wednesday's PPI (12:30 UTC). What the night did produce:
 
 - **Recorder (verified independently):** 200 markets, 270,947 rows 08:06–12:12 UTC (~1,000 rows/min), timestamps monotone,
   0 duplicates, 0 empty minutes, 4 reconnects with gaps of 0.5–8 s, mids within 0.0005 of the live API. Flags: 10.5 % of rows
