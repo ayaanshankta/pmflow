@@ -5,7 +5,7 @@ Goal: measure how fast and how far non-sports Kalshi/Polymarket markets reprice 
 | # | Task | Owner | Status | Done when (pass bar) |
 |---|------|-------|--------|----------------------|
 | 0 | Scaffold: repo, DECISIONS, TASKS, reaction.py copied, private remote | orchestrator | done | this file committed; `gh repo view` private |
-| 1 | API + legal scoping (Kalshi/Polymarket endpoints, terms verbatim, news sources, prior work) | researcher pm-api-scope | running | report with primary URLs and quoted clauses |
+| 1 | API + legal scoping | researcher pm-api-scope (Opus) | done (research/pm-api-scope.md) | report with primary URLs and quoted clauses |
 | 2 | `universe.py`: list non-sports, active, book-enabled markets on Polymarket (and Kalshi); committed exclusion rules | builder | todo | prints counts per category; `test_universe.py` passes; sports excluded by rule |
 | 3 | `record_polymarket.py`: 24/7 top-of-book recorder (websocket, REST fallback) per DECISIONS schema | builder | todo | runs >= 10 min, writes parquet, reconnects with new conn_id; `test_record.py` on a fake stream |
 | 4 | `record_kalshi.py`: same for Kalshi non-sports | — | BLOCKED: Developer Agreement §3.1 (see DECISIONS); needs written permission | same bar |

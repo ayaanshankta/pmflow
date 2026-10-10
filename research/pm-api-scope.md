@@ -31,3 +31,7 @@ arXiv 2609.06005 (Ibrahim & Zaki, Sept 2026): 173.7M on-chain Polymarket fills 2
 FEDS 2026-010 (Diercks, Katz, Wright): Kalshi forecast accuracy + response to CPI/PCE/payrolls/ISM/FOMC; 10bp CPI surprise -> 3-4bp fed-funds moments; distributions from last trades updated daily; no time-to-reprice figure found.
 Bogazici working paper: 5-min cross-venue price discovery, 2024 election (not opened). Polymarket dynamic taker fee Jan 2026 on 15-min crypto markets to curb latency arb vs spot (secondary). No latency dashboards found.
 So what: our gap is clear — second-resolution, order-book based, news->price. Report scheduled BLS releases at second resolution to differ from the Fed paper.
+## Kalshi (d)/(e) + §3
+Series filter GET /series?category= (exact, case-sensitive), include_volume=true for volume_fp; drop KXMVE combos. Non-sports liquidity (low-med conf): Crypto $9.7B, Finance $779M, Politics $202M, Economics $134M, Weather $106M vs Sports $15.3B; exotics (sports combos) 64% of volume late Sept. Week-one ranking: Crypto, Financials, Economics, Politics/Elections, Weather. Kalshi counts $1-face contracts (overstates vs Polymarket $).
+Other venues: Robinhood no public API. Crypto.com keyless REST (contract prices, no book; 100 req/min; redistribution needs licence). PredictIt /api/marketdata/all/ JSON with bestBuy/SellYesCost + per-market timestamp (s); 60-s refresh, non-commercial (secondary).
+Open: Polymarket ToS; Kalshi agreement currency (429); Kalshi key KYC/US requirements.
