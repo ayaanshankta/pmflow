@@ -11,3 +11,10 @@ Bottom line: Kalshi technically easy, CONTRACTUALLY BLOCKED (Developer Agreement
  Reading: publishing a latency study — not allowed without permission; selling derived feed — not allowed; recording for research — outside §3. kalshi.com/developer-agreement returned 429 (v1.1 currency unconfirmed). Email Kalshi for research permission.
 (d) Categories: Business, Climate and Weather, Commodities, Companies, Crypto, Economics, Elections, Entertainment, Financials, Mentions, Politics, Science and Technology, Social, Sports. Filter via GET /series?category= (exact, case-sensitive), include_volume=true. Drop multivariate combo...
 (pending rest)
+## 4. News sources (week-one picks)
+1. BLS schedule: bls.gov/schedule/news_release/bls.ics; minute precision ET; CPI Oct 14 8:30, PPI Oct 15 8:30, import/export Oct 16 8:30.
+2. BEA: bea.gov/news/schedule (ICS + apps.bea.gov/API/signup/release_dates.json); next GDP adv Q3 + PI/O Oct 29 8:30 (ET inferred).
+3. Fed RSS: federalreserve.gov/feeds/press_all.xml, press_monetary.xml, speeches.xml, testimony.xml; pubDate minute-only (":00 GMT"). FOMC Oct 27-28, Dec 8-9.
+4. SEC EDGAR current 8-K Atom: sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=8-K&output=atom; second precision w/ offset; 10 req/s, declared UA required.
+5. Existing crypto headlines (Cointelegraph/Decrypt/The Block) — Crypto is largest non-sports category.
+Not picked: GDELT (15-min batches), X API (~$0.005/post), Truth Social (third-party RSS trumpstruth.org/feed). Not checked: Reuters/AP, Google News, NewsAPI, WH/Congress; feed terms. Measure event-to-feed latency by polling every few s and logging first-seen vs stated timestamp.
