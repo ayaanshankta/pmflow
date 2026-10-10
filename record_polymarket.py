@@ -11,8 +11,8 @@ COLS = ["recv_ns", "conn_id", "bid_px", "ask_px", "bid_sz", "ask_sz"]
 NAN = float("nan")
 
 class Recorder:
-    def __init__(self, tok2mkt, out=OUT, conn_file="data/conn_id.txt"):
-        self.t2m, self.out, self.conn_file = tok2mkt, out, conn_file
+    def __init__(self, tok2mkt, out=OUT, conn_file="data/conn_id.txt", resolved="data/resolved.jsonl"):
+        self.t2m, self.out, self.conn_file, self.resolved = tok2mkt, out, conn_file, resolved
         self.books = {t: ({}, {}) for t in tok2mkt}      # token -> (bids{px:sz}, asks{px:sz})
         self.last, self.buf = {}, {}                     # token -> last tob tuple; market -> [rows]
         self.rows_min = 0
@@ -55,6 +55,8 @@ class Recorder:
                     if float(c["size"]) > 0: side[c["price"]] = float(c["size"])
                     else: side.pop(c["price"], None)
                     touched.add(t)
+            elif et == "market_resolved" and any(a in self.t2m for a in m.get("assets_ids", [])):
+                with open(self.resolved, "a") as f: f.write(json.dumps({**m, "recv_ns": recv_ns}) + "\n")
             for t in touched: self._emit(t, recv_ns)
 
     def flush(self):
@@ -73,7 +75,7 @@ class Recorder:
 async def ws_session(rec, tokens, deadline):
     async with websockets.connect(WS, ping_interval=None, max_size=None) as ws:
         cid = rec.new_conn()
-        await ws.send(json.dumps({"assets_ids": tokens, "type": "market"}))
+        await ws.send(json.dumps({"assets_ids": tokens, "type": "market", "custom_feature_enabled": True}))
         logging.info("ws connected conn_id=%d tokens=%d", cid, len(tokens))
         async def pinger():
             while True: await asyncio.sleep(10); await ws.send("PING")

@@ -2,7 +2,7 @@ import os, tempfile, pandas as pd
 from record_polymarket import Recorder
 
 d = tempfile.mkdtemp()
-r = Recorder({"YES1": "M1", "YES2": "M2"}, out=d + "/tob", conn_file=d + "/conn.txt")
+r = Recorder({"YES1": "M1", "YES2": "M2"}, out=d + "/tob", conn_file=d + "/conn.txt", resolved=d + "/res.jsonl")
 day1 = 1_760_000_000 * 10**9                    # 2025-10-09 UTC
 assert r.new_conn() == 1
 book = {"event_type": "book", "asset_id": "YES1", "market": "M1",
@@ -35,6 +35,9 @@ assert a.bid_px.between(0, 1).all() and a.recv_ns.is_monotonic_increasing
 # append-safe: second flush on same day keeps earlier rows
 r.on_msg(pc("0.51", "1", "BUY"), day1 + 4 * 10**9 + 86_400 * 10**9); r.flush()
 assert len(pd.read_parquet(f2)) == 2
+r.on_msg({"event_type": "market_resolved", "market": "M1", "assets_ids": ["NO1", "YES1"], "winning_outcome": "Yes"}, 7)
+r.on_msg({"event_type": "market_resolved", "market": "X", "assets_ids": ["A", "B"]}, 8)  # not ours
+assert len(open(d + "/res.jsonl").read().splitlines()) == 1
 # restart resumes conn_id from file
 assert Recorder({"YES1": "M1"}, out=d, conn_file=d + "/conn.txt").conn_id == 2
 print("test_record ok")

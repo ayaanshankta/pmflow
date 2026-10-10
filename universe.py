@@ -33,11 +33,17 @@ def fetch_events():
         if not page: return out
         out += page; off += len(page)
 
-def build(events):
+def sports_tag_ids():
+    """Tag ids of every sport/league listed by Gamma /sports."""
+    r = requests.get("https://gamma-api.polymarket.com/sports", timeout=30); r.raise_for_status()
+    return {t for s in r.json() for t in str(s.get("tags", "")).split(",") if t}
+
+def build(events, sport_ids=frozenset()):
     rows, n_sports = [], 0
     now = dt.datetime.now(dt.timezone.utc).isoformat()
     for e in events:
         tags = [t.get(k, "") for t in (e.get("tags") or []) for k in ("label", "slug")]
+        e_sport = any(str(t.get("id")) in sport_ids for t in e.get("tags") or [])
         for m in e.get("markets") or []:
             if not (m.get("active") and not m.get("closed") and m.get("enableOrderBook") and m.get("clobTokenIds")):
                 continue
@@ -45,7 +51,7 @@ def build(events):
             outs = json.loads(m["outcomes"]) if isinstance(m.get("outcomes"), str) else (m.get("outcomes") or [])
             if len(toks) != 2: continue
             yi = outs.index("Yes") if "Yes" in outs else 0
-            if is_sports(tags, m.get("question", ""), e.get("title", ""), e.get("slug", "")):
+            if e_sport or is_sports(tags, m.get("question", ""), e.get("title", ""), e.get("slug", "")):
                 n_sports += 1; continue
             labels = [t["label"] for t in (e.get("tags") or []) if t.get("label")]
             rows.append(dict(
@@ -58,7 +64,7 @@ def build(events):
 
 if __name__ == "__main__":
     ev = fetch_events()
-    df, n_sports = build(ev)
+    df, n_sports = build(ev, sports_tag_ids())
     top = df.head(TOP_N)
     top.drop(columns="cat1").to_parquet("data/universe_polymarket.parquet", index=False)
     print(f"events={len(ev)} eligible_nonsports={len(df)} excluded_sports={n_sports} kept={len(top)}")
