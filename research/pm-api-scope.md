@@ -18,3 +18,9 @@ Bottom line: Kalshi technically easy, CONTRACTUALLY BLOCKED (Developer Agreement
 4. SEC EDGAR current 8-K Atom: sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=8-K&output=atom; second precision w/ offset; 10 req/s, declared UA required.
 5. Existing crypto headlines (Cointelegraph/Decrypt/The Block) — Crypto is largest non-sports category.
 Not picked: GDELT (15-min batches), X API (~$0.005/post), Truth Social (third-party RSS trumpstruth.org/feed). Not checked: Reuters/AP, Google News, NewsAPI, WH/Congress; feed terms. Measure event-to-feed latency by polling every few s and logging first-seen vs stated timestamp.
+## 2. Polymarket
+Gamma public (markets/events/tags). CLOB GET /book,/price,/midpoint,/spread,/last-trade-price by token_id; POST /books etc max 500 items. Price history data-api.polymarket.com/v2/prices-history (1-min kept >=7 days). CLOB reads likely keyless (PublicClient).
+WebSocket wss://ws-subscriptions-clob.polymarket.com/ws/market; subscribe {"assets_ids":[...],"type":"market","custom_feature_enabled":true}; events book, price_change, last_trade_price, tick_size_change (+ best_bid_ask, new_market, market_resolved with custom flag); live subscribe/unsubscribe ops; send text "PING" every 10 s -> "PONG". No auth stated; no max tokens stated.
+Rate limits per IP / 10 s: Gamma general 4000, /markets 300, /tags 200; CLOB /book 1500, /books 500; throttled not rejected.
+Terms: NOT OPENED (tos renders client-side; /legal/terms-of-use 404). Help page names academic researchers; code open source. Redistribution rights unknown -> read in browser.
+Sports filter: GET /sports maps sport->tags; exclude those tags. Liquidity (low conf): Sports 40.6%, Other 24.7%, Crypto 17.1%, Politics 5.7% (Sep).
