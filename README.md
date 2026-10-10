@@ -10,16 +10,22 @@ Legal: Kalshi is excluded until written permission (its Developer Agreement bars
 
 **No news-reaction number yet: no mapped news event fell inside the recording window overnight.** What the night did produce:
 
-- **Recorder:** 200 markets, ~264k top-of-book rows in the first 4 h (~800–1,000 rows/min), 3 server-side disconnects
-  (reconnected within seconds, new `conn_id` each time). (verification pending)
-- **Overnight liveness (placebo, 40 most-active markets × 10 random times, 08:10–11:50 UTC):** at a random moment only
-  **11 %** of markets moved by ≥ 1 tick (0.01) within the next 60 min; among those that moved, the median wait was **663 s**.
-  Mean |move| at 15 min: 0.0013 probability points (n = 309 windows). Overnight these markets are mostly static, so the
-  lag question can only be answered around US-hours events. (verification pending)
+- **Recorder (verified independently):** 200 markets, 270,947 rows 08:06–12:12 UTC (~1,000 rows/min), timestamps monotone,
+  0 duplicates, 0 empty minutes, 4 reconnects with gaps of 0.5–8 s, mids within 0.0005 of the live API. Flags: 10.5 % of rows
+  have an empty bid side (26,602 of them one market, "Bitcoin $96,000 Oct 5–11", which therefore has no mid and is excluded);
+  34 rows (0.013 %) briefly crossed by ≤ 0.007.
+- **Overnight liveness (verified; placebo, 40 most-active markets × 10 random times, 08:10–11:50 UTC):** at a random moment
+  only **~10 %** of markets moved by ≥ 1 tick (0.01) within the next 60 min (ours 11 %, verifier 10.1 ± 1.4 over 20 seeds);
+  among movers the median wait was **~10–15 min** (noisy: ~40 movers per seed). Mean |move| at 15 min: 0.0013 probability
+  points (n ≈ 309). Windows spanning a reconnect are NaN'd, so ~10 % is a lower bound (17 % among reconnect-free windows).
+  Overnight these markets are mostly static; the lag question can only be answered around US-hours events.
 - **Events collected:** 184 (BLS/BEA schedules, Fed press releases + speeches, SEC 8-K filings, 3 crypto feeds); the first
   scheduled events inside the window are **CPI Tue Oct 14 and PPI Wed Oct 15, both 12:30 UTC**.
-- **Mapping:** 86 LLM calls (Haiku), 100 % parsed, $0.04; most crypto headlines judged unrelated to the 200-market universe;
-  scheduled CPI/PPI map to 5 markets each with direction "none" (correct before the print).
+- **Mapping:** 86 LLM calls (Haiku), 100 % parsed, $0.04 — but every directional mapping was feed backfill from before the
+  recorder started (several plainly wrong, e.g. January recaps mapped to Oct-10 BTC markets at confidence 0.1–0.3). They are
+  excluded; `map.py` now only maps events inside the recording window. **Directional events inside the window so far: 0.**
+  Scheduled CPI/PPI map to 5 markets each with direction "none" (correct before the print). BLS release *time* 08:30 ET is
+  verified; the Oct 14 *date* could not be confirmed from the live BLS page.
 - **Rule change before any real event was measured:** a standing quote is the price until changed (STALE 60 s → 3600 s);
   see DECISIONS.
 
