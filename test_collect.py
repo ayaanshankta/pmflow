@@ -63,6 +63,25 @@ def test_dedup_append_only(tmp_path):
     assert (df.first_seen_utc[:2] == pd.Timestamp("2026-10-10T01:00:00Z")).all()  # first sighting kept
     assert str(df.t0_utc.dt.tz) == "UTC" and df.t0_utc.dt.microsecond.eq(0).all()
 
+ALPACA = [{"id": 47440385, "created_at": "2025-09-01T23:45:20Z", "headline": "Stock &amp; <b>bond</b> news", "url": "https://b/1", "symbols": ["MSI"]},
+          {"id": 47440386, "created_at": "2025-09-01T23:46:00.123Z", "headline": "Second", "url": "https://b/2", "symbols": []}]
+
+def test_alpaca(tmp_path, monkeypatch):
+    r = c.parse_alpaca(ALPACA)
+    assert r[0]["t0_utc"] == pd.Timestamp("2025-09-01T23:45:20Z") and r[0]["title"] == "Stock & bond news" and r[0]["kind"] == "article"
+    assert r[1]["t0_utc"] == pd.Timestamp("2025-09-01T23:46:00Z")           # sub-second floored
+    out = tmp_path / "e.parquet"
+    class R:
+        def raise_for_status(s): pass
+        def json(s): return {"news": ALPACA}
+    seen = {}
+    monkeypatch.setattr(c.requests, "get", lambda u, **k: seen.update(u=u, **k) or R())
+    monkeypatch.delenv("APCA_API_KEY_ID", raising=False)
+    assert c.poll_alpaca(out) is None and not out.exists()                    # no creds -> silent skip
+    monkeypatch.setenv("APCA_API_KEY_ID", "k"); monkeypatch.setenv("APCA_API_SECRET_KEY", "s")
+    assert c.poll_alpaca(out) == (2, 2) and c.poll_alpaca(out) == (2, 0)      # dedup by id
+    assert seen["u"].endswith("/v1beta1/news") and seen["params"]["limit"] == 50 and seen["headers"]["APCA-API-KEY-ID"] == "k"
+
 if __name__ == "__main__":
     import tempfile, pathlib
     test_ics(); test_et_dst(); test_rss_atom(); test_dedup_append_only(pathlib.Path(tempfile.mkdtemp())); print("ok")

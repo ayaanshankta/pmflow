@@ -95,6 +95,29 @@ def poll_truthsocial(out=OUT):
     rows = parse_truthsocial(r.text, since)
     return len(rows), merge(rows, out)
 
+ALPACA_URL = "https://data.alpaca.markets/v1beta1/news"  # READ-ONLY news endpoint; limit 200 req/min (we use 4/min)
+
+def alpaca_headers():
+    k, s = os.environ.get("APCA_API_KEY_ID"), os.environ.get("APCA_API_SECRET_KEY")
+    return {"APCA-API-KEY-ID": k, "APCA-API-SECRET-KEY": s} if k and s else None
+
+def parse_alpaca(items):
+    """Alpaca/Benzinga news items -> event rows. t0 = created_at (second precision); id is the dedup key."""
+    return [dict(event_id=eid("alpaca", str(n["id"])), source="alpaca", t0_utc=utc(pd.Timestamp(n["created_at"])), kind="article",
+                 title=clean(n.get("headline")), url=n.get("url") or "") for n in items]
+
+_alpaca_warned = False
+def poll_alpaca(out=OUT):
+    global _alpaca_warned
+    h = alpaca_headers()
+    if not h:
+        if not _alpaca_warned: print(f"{datetime.now(timezone.utc):%F %T} alpaca SKIP no APCA_API_KEY_ID/APCA_API_SECRET_KEY", file=sys.stderr, flush=True)
+        _alpaca_warned = True; return None
+    r = requests.get(ALPACA_URL, headers={**UA, **h}, params=dict(limit=50, sort="desc", include_content="false"), timeout=30)
+    r.raise_for_status()
+    rows = parse_alpaca(r.json().get("news", []))
+    return len(rows), merge(rows, out)
+
 PARSERS = {"ics": parse_ics, "rss": parse_rss, "atom": parse_atom}
 _last = {}  # host -> last request time (<= 1 req / 2 s / host)
 def get(url):
@@ -153,6 +176,11 @@ def poll(sources=SOURCES, last_sched=None):
         try: counts["truthsocial"] = poll_truthsocial(); last_sched["truthsocial"] = time.time()
         except Exception as e:
             print(f"{datetime.now(timezone.utc):%F %T} truthsocial ERROR {e!r:.200}", file=sys.stderr, flush=True)
+    try:
+        a = poll_alpaca()
+        if a: counts["alpaca"] = a
+    except Exception as e:  # never print headers/keys; status/error text only
+        print(f"{datetime.now(timezone.utc):%F %T} alpaca ERROR {type(e).__name__} {getattr(getattr(e, 'response', None), 'status_code', '')}", file=sys.stderr, flush=True)
     return counts
 
 if __name__ == "__main__":
