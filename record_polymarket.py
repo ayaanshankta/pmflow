@@ -76,7 +76,7 @@ async def ws_session(rec, tokens, deadline):
     async with websockets.connect(WS, ping_interval=None, max_size=None) as ws:
         cid = rec.new_conn()
         await ws.send(json.dumps({"assets_ids": tokens, "type": "market", "custom_feature_enabled": True}))
-        logging.info("ws connected conn_id=%d tokens=%d", cid, len(tokens))
+        logging.info("ws connected conn_id=%d tokens=%d", cid, len(tokens)); rec.connected_ok = True  # a session that connected resets the backoff
         async def pinger():
             while True: await asyncio.sleep(10); await ws.send("PING")
         pt = asyncio.create_task(pinger())
@@ -113,6 +113,7 @@ async def main(minutes=None):
         try:
             await ws_session(rec, tokens, deadline); fails, backoff = 0, 1
         except Exception as e:
+            if getattr(rec, "connected_ok", False): fails, backoff, rec.connected_ok = 0, 1, False  # fix 2026-10-11: counters used to accumulate for the process lifetime
             fails += 1; logging.warning("ws error (%s) fail#%d reconnect in %ds", repr(e)[:120], fails, backoff)
             if fails >= 3:  # ponytail: fallback cycles ~1 request/100 tokens; fine at 200 markets
                 logging.warning("ws unavailable -> REST polling /books for 60s then retry ws")
