@@ -27,7 +27,7 @@ t0 = FOMC statement 14:00 ET / CPI 08:30 ET (zoneinfo, DST-correct). Fills on ma
 | CPI | 10-24 | 12:30 | 10 | 82 | 104 | 91 | 0 | 91 | ann =2.9 0.448→n/a | 37 s |
 | CPI | 12-18 | 13:30 | 10 | 127 | 508 | 176 | 1 | 267 | mo =0.3 0.908→0.289 | 60 s |
 
-(p +15m = mean `p_event` of fills in [t0+12m, t0+18m]; "n/a" = no fill in that window.) Peak minute is 0 in 13/19 events and 1-2 in the rest; 18 of 19 events put ≥1 minute-bin peak within 2 min of t0 — nothing like a 3-hour smear. Fills in the first minute after t0 exceed the *whole* previous 5 minutes in most events. Prices step to the resolved level within seconds-to-minutes (fastest 6 s on 12-10 FOMC, 7 s on 09-11 CPI). The 09-17 peak at -7 min is pre-release positioning on a day with 4.8k fills in the hour before (Miran/50bp speculation), not timestamp noise.
+(p +15m = mean `p_event` of fills in [t0+12m, t0+18m]; "n/a" = no fill in that window.) Peak minute is 0 in 12/19 events and 1-2 in 6 more (18/19 within 2 min of t0) — nothing like a 3-hour smear. Fills in the first minute after t0 exceed the *whole* previous 5 minutes in most events. Prices step to the resolved level within seconds-to-minutes (fastest 6 s on 12-10 FOMC, 7 s on 09-11 CPI). The 09-17 peak at -7 min is pre-release positioning on a day with 4.8k fills in the hour before (pre-release positioning), not timestamp noise.
 
 ## 2. Block-number consistency (raw `OrderFilled`, `id` = chain_block_log)
 | shard | fills | blocks | ts conflicts within a block | monotone | s/block median / p99 / max | gaps >10 s |
