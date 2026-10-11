@@ -6,7 +6,17 @@ Methodology ported from `~/Downloads/newsflow` (verified). Paper only. Rules and
 Legal: Kalshi is excluded until written permission (its Developer Agreement bars storing/sharing API data; draft request in
 `research/kalshi-permission-email.md`). Polymarket data is public/on-chain; its Terms of Use are still to be read.
 
-## Result so far (first night + morning, 2026-10-10 03:06–09:15 CDT)
+## Result 1 (backtest, verified): scheduled macro news is priced in within seconds
+
+On 19 scheduled 2025 releases (8 FOMC decisions, 11 CPI prints) in the public Polymarket fills archive (1.2 B on-chain fills,
+`TimeSeventeen/Polymarket-v1`, timestamps shown to be second-precise), fill activity peaked in the first minute after release
+for 12 events and within two minutes for 18; where the price was not already pinned (7 of 19 sat at ≥ 0.99), the first ≥ 2-point
+move came **6–101 s** after the release. Independently re-derived on 5 events with identical numbers (`research/archive-check.md`).
+**Conclusion: there is no sellable lag on scheduled macro news.** Caveats: best-case events (everyone is waiting), last-trade
+prices only, on-chain settlement stamps a few seconds after the match. **Open question: unscheduled news** (posts, filings,
+geopolitics) — that is what the live feeds and the next backtest measure.
+
+## Live recording (desktop, since 2026-10-10 15:09 CDT)
 
 **No news-reaction number yet.** 375k quote rows recorded over 6 h on 200 markets, but only 3 news events (crypto articles) fell
 inside the window and the mapper judged none of them to touch a recorded market. The first measurable events are Wednesday's CPI
