@@ -1,0 +1,8 @@
+# open-data (2026-10-11, Opus researcher)
+Add this week: Bluesky Jetstream (free ws, microsecond cursor; politics breaks there), Truth Social via CNN archive (github stiles/trump-truth-social-archive, 5-min refresh, unofficial), Alpaca/Benzinga news (RFC-3339 seconds, websocket; free REST 200/min, ws free-plan unconfirmed). Backtest: Polymarket-v1 (HF TimeSeventeen, 1.2B on-chain fills 2022-11..2026-04, block_timestamp seconds, CC-BY-4.0) vs Alpaca Benzinga history.
+Weak/skip: GDELT 15-min batches; Finnhub ws stale; X API ~$0.005/read; Reddit non-commercial lagging; NewsAPI free = 24h delay; Marketaux thin; Polygon equities; Federal Register/Congress unverified.
+Historical: SII-WANGZJ/Polymarket_data (~1.1B records + toolkit); Polymarket prices-history (1-min ~7 days, resolved markets 12h+ only); Tardis.dev Polymarket L2 ticks (free 1st of month only); Binance public data...
+(pending rest)
+Rest of B: Binance public data (spot µs from 2025); Manifold dumps stale/non-commercial; Kalshi blocked; PredictIt current only; Kaggle Polymarket orderbook YES-only.
+C: Alpaca/Benzinga history to 2015 (second-level, free REST) ★★★; Truth Social Kaggle archive 36k posts ★★★; GDELT ★★; CC-NEWS (crawl time not publish) ★★; FNSPID 15.7M rows 1999-2023 equities CC-BY-NC ★; EDGAR FTS date-level ★; PolyBench 38,666 markets + news 6-12 Feb 2026 ★★; OpenMarket Polymarket-Binance sync ★★.
+Picks: Bluesky Jetstream (hand-picked DID list), Truth Social archive (per-post timestamp unconfirmed), Alpaca news (needs free account/key; ws on free plan unconfirmed). Backtest: Polymarket-v1 + Alpaca history. FLAG: arXiv 2602.19520 claims ~3 h noise in block-derived Polymarket trade times — spot-check vs our recorder before trusting the archive for lag.
