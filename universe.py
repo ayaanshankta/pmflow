@@ -5,6 +5,7 @@ import pandas as pd, requests
 
 GAMMA = "https://gamma-api.polymarket.com/events"
 TOP_N = 200
+SHORT_N, SHORT_DAYS = 50, 7  # 'short-dated': most-active markets ending within a week
 GENERIC = {"All", "Featured", "United States", "Politics", "Elections", "World"}
 SPORTS_KW = [
     "sports", "sport", "nba", "wnba", "nfl", "mlb", "nhl", "mls", "ncaa", "ncaab", "ncaaf", "cfb", "cbb", "soccer",
@@ -32,6 +33,15 @@ def fetch_events():
         page = r.json()
         if not page: return out
         out += page; off += len(page)
+
+def with_short(df, now=None):
+    """Top-N by volume24hr ('top200') unioned with the SHORT_N most active markets whose end_date is within SHORT_DAYS ('short').
+    A market in both keeps slice='top200'. df must be sorted by volume24hr desc."""
+    now = pd.Timestamp(now or dt.datetime.now(dt.timezone.utc))
+    top = df.head(TOP_N).assign(slice="top200")
+    end = pd.to_datetime(df.end_date, utc=True, errors="coerce")
+    short = df[(end > now) & (end <= now + pd.Timedelta(days=SHORT_DAYS)) & ~df.market_id.isin(top.market_id)].head(SHORT_N).assign(slice="short")
+    return pd.concat([top, short], ignore_index=True)
 
 def sports_tag_ids():
     """Tag ids of every sport/league listed by Gamma /sports."""
@@ -65,7 +75,8 @@ def build(events, sport_ids=frozenset()):
 if __name__ == "__main__":
     ev = fetch_events()
     df, n_sports = build(ev, sports_tag_ids())
-    top = df.head(TOP_N)
+    top = with_short(df)
     top.drop(columns="cat1").to_parquet("data/universe_polymarket.parquet", index=False)
     print(f"events={len(ev)} eligible_nonsports={len(df)} excluded_sports={n_sports} kept={len(top)}")
+    print("slices:", top.slice.value_counts().to_dict())
     print(top.cat1.value_counts().to_string())

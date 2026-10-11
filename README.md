@@ -37,9 +37,10 @@ pass bar (DECISIONS) is unchanged.
 ## Repro
 ```
 cd ~/Downloads/pmflow
-/opt/anaconda3/bin/python3 -W ignore universe.py                                   # refresh the 200-market universe
+/opt/anaconda3/bin/python3 -W ignore universe.py                                   # refresh the universe: top-200 + 50 short-dated (column `slice`)
 nohup caffeinate -i /opt/anaconda3/bin/python3 -W ignore record_polymarket.py > data/recorder.stdout 2>&1 &   # log: data/recorder.log
-nohup caffeinate -i /opt/anaconda3/bin/python3 -W ignore collect.py --loop 15 > data/collect.log 2>&1 &
+nohup caffeinate -i /opt/anaconda3/bin/python3 -W ignore collect.py --loop 15 > data/collect.log 2>&1 &   # also polls the Truth Social archive every 5 min
+nohup caffeinate -i /opt/anaconda3/bin/python3 -W ignore bluesky.py > data/bluesky.stdout 2>&1 &            # Bluesky Jetstream, accounts in bluesky_accounts.txt; log: data/bluesky.log
 /opt/anaconda3/bin/python3 -W ignore map.py            # headline -> markets (Haiku via claude -p; cap $0.50/run)
 /opt/anaconda3/bin/python3 -W ignore run_reactions.py  # reactions + placebo -> data/reactions.parquet + summary
 /opt/anaconda3/bin/python3 -m pytest -q                # tests

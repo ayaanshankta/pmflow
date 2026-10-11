@@ -4,7 +4,7 @@ Columns: event_id, source, t0_utc, first_seen_utc, title, url, kind. All times U
   python3 collect.py --loop 15   poll every 15 s (schedules re-polled at most every SCHED_EVERY s)
 Scheduled releases: t0 = official schedule time. Others: t0 = publisher's timestamp (Fed pubDate is minute precision).
 """
-import argparse, hashlib, html, re, sys, time, xml.etree.ElementTree as ET
+import argparse, contextlib, hashlib, json, os, html, re, sys, time, xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 from pathlib import Path
@@ -72,6 +72,29 @@ def parse_atom(text, source, kind):
                          t0_utc=utc(pd.Timestamp(upd)), kind=kind, title=clean(e.findtext(ns + "title")), url=link.get("href")))
     return rows
 
+TS_URL, TS_EVERY, TS_BACKFILL_DAYS = "https://ix.cnn.io/data/truth-social/truth_archive.json", 300, 7
+
+def parse_truthsocial(text, since=None, now=None):
+    """CNN archive (refreshed ~5 min, ~20 MB, newest first). created_at has ms precision -> floored to second (source 'truthsocial').
+    Only posts with t0 > since (default: last TS_BACKFILL_DAYS days, so first run does not backfill 4 years)."""
+    since = since if since is not None else pd.Timestamp(now or datetime.now(timezone.utc)) - pd.Timedelta(days=TS_BACKFILL_DAYS)
+    rows = []
+    for p in json.loads(text):
+        t0 = utc(pd.Timestamp(p["created_at"]))
+        if t0 <= since: continue
+        title = clean(p.get("content")) or ("[media]" if p.get("media") else "[empty]")
+        rows.append(dict(event_id=eid("truthsocial", p["id"]), source="truthsocial", t0_utc=t0, kind="post", title=title, url=p["url"]))
+    return rows
+
+def poll_truthsocial(out=OUT):
+    since = None
+    if out.exists():
+        d = pd.read_parquet(out, columns=["source", "t0_utc"]); d = d[d.source == "truthsocial"]
+        since = d.t0_utc.max() if len(d) else None
+    r = requests.get(TS_URL, headers=UA, timeout=60); r.raise_for_status()
+    rows = parse_truthsocial(r.text, since)
+    return len(rows), merge(rows, out)
+
 PARSERS = {"ics": parse_ics, "rss": parse_rss, "atom": parse_atom}
 _last = {}  # host -> last request time (<= 1 req / 2 s / host)
 def get(url):
@@ -87,14 +110,27 @@ def _enc(b):  # honour the XML declaration (SEC is ISO-8859-1), else utf-8
 
 def merge(new_rows, out=OUT, now=None):
     """Append rows whose event_id is unseen; existing rows (incl. first_seen_utc) are never changed. Returns n added."""
-    df = pd.DataFrame(new_rows, columns=COLS[:2] + ["t0_utc", "title", "url", "kind"])
+    df = pd.DataFrame(new_rows, columns=COLS[:2] + ["t0_utc", "first_seen_utc", "title", "url", "kind"])
     if df.empty: return 0
+    with _lock(out): return _merge(df, out, now)
+
+@contextlib.contextmanager
+def _lock(out):  # lockfile (no fcntl: desktop is Windows); collect.py and bluesky.py both write events.parquet
+    lk = out.with_suffix(".lock"); out.parent.mkdir(parents=True, exist_ok=True)
+    for _ in range(600):
+        try: os.close(os.open(lk, os.O_CREAT | os.O_EXCL)); break
+        except FileExistsError:
+            if time.time() - lk.stat().st_mtime > 120: lk.unlink(missing_ok=True)  # stale
+            time.sleep(0.1)
+    try: yield
+    finally: lk.unlink(missing_ok=True)
+
+def _merge(df, out, now):
     old = pd.read_parquet(out) if out.exists() else pd.DataFrame(columns=COLS)
     df = df[~df.event_id.isin(old.event_id)].drop_duplicates("event_id")
     if df.empty: return 0
-    df["first_seen_utc"] = utc(now or datetime.now(timezone.utc))
+    df["first_seen_utc"] = df.first_seen_utc.fillna(utc(now or datetime.now(timezone.utc)))
     df = df[COLS]
-    out.parent.mkdir(parents=True, exist_ok=True)
     allr = pd.concat([old, df], ignore_index=True) if len(old) else df
     for c in ("t0_utc", "first_seen_utc"): allr[c] = pd.to_datetime(allr[c], utc=True).astype("datetime64[s, UTC]")
     tmp = out.with_suffix(".tmp"); allr.to_parquet(tmp, index=False); tmp.replace(out)
@@ -113,6 +149,10 @@ def poll(sources=SOURCES, last_sched=None):
             counts[source] = (len(rows), merge(rows))
         except Exception as e:
             print(f"{datetime.now(timezone.utc):%F %T} {source} ERROR {e!r:.200}", file=sys.stderr, flush=True)
+    if time.time() - last_sched.get("truthsocial", 0) >= TS_EVERY:
+        try: counts["truthsocial"] = poll_truthsocial(); last_sched["truthsocial"] = time.time()
+        except Exception as e:
+            print(f"{datetime.now(timezone.utc):%F %T} truthsocial ERROR {e!r:.200}", file=sys.stderr, flush=True)
     return counts
 
 if __name__ == "__main__":
