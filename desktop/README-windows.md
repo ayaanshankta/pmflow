@@ -9,7 +9,8 @@ python -m venv .venv ; .venv\Scripts\pip install -r requirements.txt
 # start both as hidden background processes (survive the terminal closing):
 Start-Process -WindowStyle Hidden -FilePath .venv\Scripts\python.exe -ArgumentList "-W","ignore","record_polymarket.py" -RedirectStandardOutput data\recorder.stdout -RedirectStandardError data\recorder.err
 Start-Process -WindowStyle Hidden -FilePath .venv\Scripts\python.exe -ArgumentList "-W","ignore","collect.py","--loop","15" -RedirectStandardOutput data\collect.log -RedirectStandardError data\collect.err
-Get-CimInstance Win32_Process | ? { $_.CommandLine -like "*record_polymarket*" -or $_.CommandLine -like "*collect.py*" } | select ProcessId, ParentProcessId, CommandLine   # verify: the venv python.exe is a launcher whose child is anaconda3\python.exe; stop BOTH by script name
+Start-Process -WindowStyle Hidden -FilePath .venv\Scripts\python.exe -ArgumentList "-W","ignore","bluesky.py" -RedirectStandardOutput data\bluesky.stdout -RedirectStandardError data\bluesky.err   # Bluesky Jetstream; log data\bluesky.log
+Get-CimInstance Win32_Process | ? { $_.CommandLine -like "*record_polymarket*" -or $_.CommandLine -like "*collect.py*" -or $_.CommandLine -like "*bluesky.py*" } | select ProcessId, ParentProcessId, CommandLine   # verify: the venv python.exe is a launcher whose child is anaconda3\python.exe; stop BOTH by script name
 ```
 Scheduled passes (CPI/PPI): Task Scheduler, daily 07:50 and 09:50 CDT: `.venv\Scripts\python.exe -W ignore event_pass.py`, start-in `C:\projects\pmflow`; output in data\summary.md.
 Health: `python gaps.py` lists recording gaps > 90 s. Data under data\tob is append-only; back up like market-maker (robocopy /XO to D:\).

@@ -17,3 +17,14 @@ for tags, q, exp in S:
     assert is_sports(tags, q) == exp, (tags, q, exp)
 assert is_sports([], "x", "", "nfl-super-bowl-winner")  # slug hyphens split
 print("ok", len(S) + 1)
+import pandas as pd, universe as u
+now = pd.Timestamp("2026-10-11T00:00:00Z")
+rows = [dict(market_id=f"t{i}", end_date="2027-01-01T00:00:00Z", volume24hr=1000 - i) for i in range(u.TOP_N)]            # top200, long-dated
+rows += [dict(market_id="t0s", end_date="2026-10-12T00:00:00Z", volume24hr=1)]                                              # ranked below 200, ends in 1 d
+rows += [dict(market_id=f"s{i}", end_date="2026-10-13T00:00:00Z", volume24hr=0.5) for i in range(60)]                       # 60 short candidates
+rows += [dict(market_id="past", end_date="2026-10-10T00:00:00Z", volume24hr=0.4), dict(market_id="far", end_date="2026-10-19T00:00:00Z", volume24hr=0.4)]
+df = pd.DataFrame(rows).sort_values("volume24hr", ascending=False)
+out = u.with_short(df, now)
+assert out.slice.value_counts().to_dict() == {"top200": 200, "short": 50} and out.market_id.is_unique
+assert "past" not in set(out.market_id) and "far" not in set(out.market_id) and "t0s" in set(out[out.slice == "short"].market_id)
+print("slice ok")
