@@ -27,3 +27,13 @@ def test_control1_prompt_has_no_post_or_slots(monkeypatch):
     msg = C.L.user_message("SECRET POST", "will-china-tariff-hit-60")
     assert msg == "Market: will china tariff hit 60\nAnswer (up, down or none):" and "SECRET" not in msg
     assert "{" not in C.L.SYSTEM and "none" in C.L.SYSTEM and C.L.CACHE.endswith("controls_c1_dirs.jsonl")
+
+def test_forced_choice_never_coerces_to_direction(monkeypatch):
+    for a in ("CACHE", "PROMPT_MD", "SYSTEM", "user_message", "parse_dir"): monkeypatch.setattr(C.L, a, getattr(C.L, a))
+    assert C.parse_updown("Up.") == 1 and C.parse_updown(" DOWN\n") == -1
+    for bad in ["none", "None.", "", None, "up or down", "upward", "I think up", "up\ndown", "neither"]:
+        assert C.parse_updown(bad) is None
+    C.set_prompt("c3")
+    assert C.L.parse_dir("none") is None and C.L.parse_dir("up") == 1   # the patched parser is the one get_dirs uses
+    assert "none" not in C.L.SYSTEM.lower().replace("up or down", "") and C.L.CACHE.endswith("controls_c3_dirs.jsonl")
+    assert C.L.user_message("SECRET", "will-x-happen") == "Market: will x happen\nAnswer (up or down):"

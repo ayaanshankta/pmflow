@@ -23,3 +23,17 @@ Uses the B2 prompt in `research/replay-llm-prompt.md` unchanged (system prompt a
 
 ## Parsing, retry, cap
 Identical to B2: reply must be exactly `up`, `down` or `none`; one retry; a double failure is a failure, not `none`. Combined spend cap for both controls: $1.
+
+## Control 3 (addendum B3b): forced choice, no post
+Appended before any call for this control; the text above is unchanged. The model sees only the market slug with hyphens turned into spaces; no post, date or price. It has no "none" option. Same model alias, same 677 liquid pairs, one call per pair, cached in `data/controls_c3_dirs.jsonl`, spend cap $0.50. A reply that is not exactly `up` or `down` (including `none`) is a parse failure: retried once, and if it fails again the pair is a failure and is excluded, never coerced.
+
+System prompt (exact):
+```
+You read the title of one prediction market. Decide which way the price of YES in that market will move next. Answer with exactly one word: up or down. You must choose one. Give no explanation.
+```
+
+User message template (exact; `{question}` = slug with `-` replaced by a space):
+```
+Market: {question}
+Answer (up or down):
+```
