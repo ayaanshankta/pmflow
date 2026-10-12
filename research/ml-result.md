@@ -10,7 +10,7 @@ Code: lexicon.py (a37a879, committed before labelling), ml_fetch.py, ml_dataset.
 Plain reading: the model predicts *which markets move* (AUC 0.89), but almost all of that comes from market features (p0, fill rate, hour: price-only AUC 0.876). Text adds +0.016 AUC over price-only. Headline text does **not** predict *direction*: 51.7 % vs 52.1 % for always guessing "up" (the up-share among test movers). The baseline "recent |move| rate" is a weak baseline for a move model, so +0.12 over it overstates what the headline contributes.
 
 ## Data (real pairs; placebo = same headline text at a random time on the same market, ±3 d, ≥ 1 h from any matched headline, same 20-fill/label rules)
-Headlines: 122,427 Benzinga + 4,870 Truth Social lexicon-matched (127,297) → 421,996 candidate (headline, market) pairs, top-5 markets by prior-7d fills, ≥ 20 fills prior 7 d, not resolved. 40–50 % lose the label (no fill in [t0+12m, t0+18m]) and are dropped per rule.
+Headlines: 122,427 Benzinga + 4,870 Truth Social lexicon-matched (127,297) → 421,996 candidate (headline, market) pairs, top-5 markets by prior-7d fills, ≥ 20 fills prior 7 d, not resolved. 73 % (307,835 of 421,996) have no fill in [t0+12m, t0+18m] or no p0 and are dropped per rule, leaving 114,161 real pairs.
 
 | split | kind | n | headlines | markets | y_move rate | movers | up-share of movers |
 |---|---|---|---|---|---|---|---|
@@ -43,10 +43,10 @@ Ranking is useful (observed rate rises monotonically), probabilities are ~1.5–
 ## Caveats
 - **Keyword relevance is crude** (Result 2: ~3 of 10 sampled pairs clearly related). Many headlines (e.g. a company-news item matching "apple", "meta", "gold") are only loosely tied to the market; direction labels on such pairs are noise. A cleaner relevance filter (LLM) could raise direction accuracy and is the obvious follow-up; this result is for the pre-registered keyword pairing only.
 - **Settlement stamps:** block_timestamp is on-chain settlement (a few seconds after the match); irrelevant at 12–18 min horizons.
-- **Label noise / selection:** dp15 uses the last fill in a 6-min window vs a 5-fill mean; thin markets bounce between bid and ask, producing |dp15| ≥ 0.02 from spread alone. ~45 % of candidate rows have no fill in the window and are dropped (the sample is conditional on a fill happening). y_dir is on fill-price moves, not mid.
+- **Label noise / selection:** dp15 uses the last fill in a 6-min window vs a 5-fill mean; thin markets bounce between bid and ask, producing |dp15| ≥ 0.02 from spread alone. 73 % of candidate rows have no fill in the window and are dropped (the sample is conditional on a fill happening, i.e. on active markets). y_dir is on fill-price moves, not mid.
 - **Non-stationarity:** move rate falls 16 → 8.5 → 7.3 % across splits (2024 election markets dominate train). Models were not retrained on train+val.
-- **Dependence:** one headline maps to ≤ 5 markets and markets re-appear daily; Wilson CIs assume independence. The market-day cluster bootstrap is wider by ~0.1 pt and leads to the same conclusion.
-- **Excluded by lexicon decision:** slugs matching `up-or-down|updown` (5/15-min/hourly coin-flip markets, ~85 % of crypto fills in 2026) are excluded — they resolve within minutes and would dominate the data. 2022-11..2023 has almost no matching liquid markets (first months have ≤ a few k fills), so the train set is effectively 2024–2025-09.
+- **Dependence:** one headline maps to ≤ 5 markets and markets re-appear daily; Wilson CIs assume independence. The market-day cluster bootstrap is about as wide as Wilson and leads to the same conclusion.
+- **Excluded by lexicon decision:** slugs matching `up-or-down|updown` (5/15-min/hourly coin-flip markets, the bulk of crypto fills in 2026; one probed day was ~75 % of all fills) are excluded — they resolve within minutes and would dominate the data. 2022-11..2023 has almost no matching liquid markets (first months have ≤ a few k fills), so the train set is effectively 2024–2025-09.
 - Direction baseline = sign of (positive − negative word count) in lexicon.py, applied to the Yes-axis price regardless of the market's wording: crude by design, only makes a call on 29 % of movers.
 - A first `ml_train.py test` run crashed on a string-concatenation bug AFTER computing AUCs and BEFORE writing results/ml_test.json (models and thresholds were fixed; nothing was refit or tuned); the fixed re-run produced the table above.
 
@@ -54,7 +54,7 @@ Ranking is useful (observed rate rises monotonically), probabilities are ~1.5–
 ```
 cd pmflow-M   # branch pm/ml; data/archive symlinked to ~/Downloads/pmflow/data/archive
 P=/opt/anaconda3/bin/python3
-$P ml_fetch.py          # 41 monthly steps, ~90 min, <= 0.2 GB raw on disk at a time -> data/ml_fills (421 MB)
+$P ml_fetch.py          # 41 monthly steps, ~40 min, <= 0.2 GB raw on disk at a time -> data/ml_fills (421 MB)
 $P ml_dataset.py        # -> data/ml_pairs.parquet (18 MB), counts above
 $P ml_train.py select   # validation grid -> results/ml_selected.json, data/ml_models.joblib
 $P ml_train.py test     # one-shot test scoring -> results/ml_test.json (refuses to run twice)
