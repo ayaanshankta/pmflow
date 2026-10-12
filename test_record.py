@@ -44,7 +44,7 @@ assert Recorder({"YES1": "M1"}, out=d, conn_file=d + "/conn.txt", depth=d + "/de
 
 # ---- recorder2: trades, depth, ticks; tob output pinned to the pre-change recorder on the same stream ----
 from streams import read_stream
-from fixture_stream import STREAM, DAY1, BOOK, TICK, pc, S
+from fixture_stream import STREAM, DAY1, BOOK, TICK, TRADE, pc, S
 mk = lambda: (lambda d: (d, Recorder({"YES1": "M1"}, out=d + "/tob", conn_file=d + "/c.txt", resolved=d + "/r.jsonl",
               trades=d + "/trades", depth=d + "/depth", ticks=d + "/ticks.jsonl")))(tempfile.mkdtemp())
 d, r = mk(); r.new_conn()
