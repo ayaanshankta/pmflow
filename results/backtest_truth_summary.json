@@ -1,0 +1,111 @@
+{
+ "matched_posts": 1016,
+ "events": 400,
+ "events_with_pair": 400,
+ "relevance": 1.0,
+ "primary": {
+  "kind_pl": "placebo",
+  "unpinned": false,
+  "n_events": 400,
+  "n_pairs": 1993,
+  "n_pairs_with_placebo": 1993,
+  "n_placebo": 39639,
+  "pre60": 116.60913196186654,
+  "post5": 14.758655293527346,
+  "post_5_60": 103.83492222779729,
+  "post5_placebo": 6.316834430737405,
+  "pre60_placebo": 73.54885340195263,
+  "excess_post5": 8.469094072607607,
+  "excess_ci": [
+   4.272636463217933,
+   13.889310785914201
+  ],
+  "event_moved": 344,
+  "event_moved_share": 0.1726041144004014,
+  "event_t_move_median": 682.0,
+  "event_t_first_median": 89.0,
+  "event_dp15_mean": 0.012240631250842507,
+  "placebo_moved": 5319,
+  "placebo_moved_share": 0.13418602891092107,
+  "placebo_t_move_median": 1210.0,
+  "placebo_t_first_median": 108.0,
+  "placebo_dp15_mean": 0.006647578550665209,
+  "t_move_ci": [
+   531.0,
+   899.5
+  ],
+  "moved_share_diff": 0.038418085489480336,
+  "pass1": false,
+  "pass2": true
+ },
+ "tod": {
+  "kind_pl": "placebo_tod",
+  "unpinned": false,
+  "n_events": 400,
+  "n_pairs": 1993,
+  "n_pairs_with_placebo": 1992,
+  "n_placebo": 39496,
+  "pre60": 116.60913196186654,
+  "post5": 14.758655293527346,
+  "post_5_60": 103.83492222779729,
+  "post5_placebo": 6.5093427182499495,
+  "pre60_placebo": 77.10109884545271,
+  "excess_post5": 8.306676649851457,
+  "excess_ci": [
+   4.041072919803302,
+   13.762056408323168
+  ],
+  "event_moved": 344,
+  "event_moved_share": 0.1726041144004014,
+  "event_t_move_median": 682.0,
+  "event_t_first_median": 89.0,
+  "event_dp15_mean": 0.012240631250842507,
+  "placebo_moved": 5741,
+  "placebo_moved_share": 0.14535649179663762,
+  "placebo_t_move_median": 1096.0,
+  "placebo_t_first_median": 106.0,
+  "placebo_dp15_mean": 0.007302465429094201,
+  "t_move_ci": [
+   531.0,
+   899.5
+  ],
+  "moved_share_diff": 0.027247622603763788,
+  "pass1": false,
+  "pass2": true
+ },
+ "unpinned": {
+  "kind_pl": "placebo",
+  "unpinned": true,
+  "n_events": 370,
+  "n_pairs": 1116,
+  "n_pairs_with_placebo": 1115,
+  "n_placebo": 22545,
+  "pre60": 143.9363799283154,
+  "post5": 22.483870967741936,
+  "post_5_60": 152.04569892473117,
+  "post5_placebo": 9.010201818585053,
+  "pre60_placebo": 105.83703703703704,
+  "excess_post5": 14.472813364317203,
+  "excess_ci": [
+   7.423909760340597,
+   23.911154114020547
+  ],
+  "event_moved": 342,
+  "event_moved_share": 0.3064516129032258,
+  "event_t_move_median": 682.0,
+  "event_t_first_median": 82.0,
+  "event_dp15_mean": 0.016128773680064493,
+  "placebo_moved": 5248,
+  "placebo_moved_share": 0.23277888667110225,
+  "placebo_t_move_median": 1202.0,
+  "placebo_t_first_median": 100.0,
+  "placebo_dp15_mean": 0.008564488975598201,
+  "t_move_ci": [
+   528.0,
+   900.0
+  ],
+  "moved_share_diff": 0.07367272623212356,
+  "pass1": false,
+  "pass2": true
+ }
+}
