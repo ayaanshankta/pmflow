@@ -1,8 +1,9 @@
-import os, tempfile, pandas as pd
+import os, json, tempfile, pandas as pd
 from record_polymarket import Recorder
 
 d = tempfile.mkdtemp()
-r = Recorder({"YES1": "M1", "YES2": "M2"}, out=d + "/tob", conn_file=d + "/conn.txt", resolved=d + "/res.jsonl")
+r = Recorder({"YES1": "M1", "YES2": "M2"}, out=d + "/tob", conn_file=d + "/conn.txt", resolved=d + "/res.jsonl",
+             trades=d + "/trades", depth=d + "/depth", ticks=d + "/ticks.jsonl")
 day1 = 1_760_000_000 * 10**9                    # 2025-10-09 UTC
 assert r.new_conn() == 1
 book = {"event_type": "book", "asset_id": "YES1", "market": "M1",
@@ -39,5 +40,60 @@ r.on_msg({"event_type": "market_resolved", "market": "M1", "assets_ids": ["NO1",
 r.on_msg({"event_type": "market_resolved", "market": "X", "assets_ids": ["A", "B"]}, 8)  # not ours
 assert len(open(d + "/res.jsonl").read().splitlines()) == 1
 # restart resumes conn_id from file
-assert Recorder({"YES1": "M1"}, out=d, conn_file=d + "/conn.txt").conn_id == 2
+assert Recorder({"YES1": "M1"}, out=d, conn_file=d + "/conn.txt", depth=d + "/depth").conn_id == 2
+
+# ---- recorder2: trades, depth, ticks; tob output pinned to the pre-change recorder on the same stream ----
+from fixture_stream import STREAM, DAY1, BOOK, TICK, pc, S
+mk = lambda: (lambda d: (d, Recorder({"YES1": "M1"}, out=d + "/tob", conn_file=d + "/c.txt", resolved=d + "/r.jsonl",
+              trades=d + "/trades", depth=d + "/depth", ticks=d + "/ticks.jsonl")))(tempfile.mkdtemp())
+d, r = mk(); r.new_conn()
+for m, ns in STREAM: r.on_msg(m, ns)
+assert r.flush() == 6
+PIN = {"date=2025-10-09": [[DAY1, 1, .45, .55, 5., 7.], [DAY1 + 1, 1, .46, .55, 3., 7.], [DAY1 + 6, 1, .45, .55, 5., 7.],
+                           [DAY1 + 7, 1, .45, .6, 5., 9.], [DAY1 + 3 * S, 1, .45, .55, 5., 7.]],
+       "date=2025-10-10": [[DAY1 + 86_400 * S, 1, .5, .55, 1., 7.]]}  # captured from the pre-change code (pin.py)
+for day, rows in PIN.items():
+    g = pd.read_parquet(f"{d}/tob/M1/{day}.parquet")
+    assert list(g.columns) == ["recv_ns", "conn_id", "bid_px", "ask_px", "bid_sz", "ask_sz"]
+    assert g.to_dict("split")["data"] == rows and g.recv_ns.dtype == "int64" and g.conn_id.dtype == "int64", (day, g)
+# trade: one row, exchange timestamp kept
+tr = pd.read_parquet(f"{d}/trades/M1/date=2025-10-09.parquet")
+assert len(tr) == 1 and tr.iloc[0][["recv_ns", "conn_id", "price", "size", "side", "exch_ts_ms"]].tolist() == [DAY1 + 2, 1, .46, 12.5, "SELL", 1760000000123]
+assert tr.tx_hash.iloc[0] == "0xabc"
+# tick change: jsonl with recv_ns
+tk = [json.loads(l) for l in open(d + "/ticks.jsonl")]
+assert len(tk) == 1 and tk[0]["new_tick_size"] == "0.001" and tk[0]["recv_ns"] == DAY1 + 5
+r.on_msg({**TICK, "asset_id": "NOPE"}, 1); assert len(open(d + "/ticks.jsonl").read().splitlines()) == 1
+
+# depth on a hand-built book: mid 0.51; bands 1/2/5 c = [bid,ask] per band
+d, r = mk(); r.new_conn()
+hb = {"event_type": "book", "asset_id": "YES1", "bids": [{"price": p, "size": s} for p, s in (("0.50", "10"), ("0.48", "5"), ("0.46", "7"), ("0.40", "20"))],
+      "asks": [{"price": p, "size": s} for p, s in (("0.52", "4"), ("0.53", "6"), ("0.55", "8"), ("0.60", "9"))]}
+t0 = DAY1
+r.on_msg(hb, t0)
+assert r.dbuf["M1"] == [(t0, 1, 10., 4., 10., 10., 22., 18., t0)], r.dbuf          # first state: written at once
+# throttle: two changes inside 1 s -> pending, nothing written; the latest state is emitted on the next tick at/after +1 s
+r.on_msg(pc("0.50", "11", "BUY"), t0 + S // 5)                                  # bid1c 10 -> 11
+r.on_msg(pc("0.50", "12", "BUY"), t0 + 2 * S // 5)                              # -> 12 (replaces pending)
+r.on_msg(pc("0.10", "99", "BUY"), t0 + 3 * S // 5)                              # outside 5c, tob same: no depth change
+assert len(r.dbuf["M1"]) == 1 and r.dpend["YES1"][0] == t0 + 2 * S // 5
+r.drain(t0 + 9 * S // 10); assert len(r.dbuf["M1"]) == 1                        # 0.9 s: still held
+r.drain(t0 + S)
+assert r.dbuf["M1"][1] == (t0 + S, 1, 12., 4., 12., 10., 24., 18., t0 + 2 * S // 5) and not r.dpend  # recv_ns = emit time, state_ns = arrival
+r.on_msg(pc("0.50", "12", "BUY"), t0 + 3 * S)                                   # same state -> no row
+r.drain(t0 + 5 * S); assert len(r.dbuf["M1"]) == 2
+r.on_msg(pc("0.50", "0", "BUY"), t0 + 6 * S)                                    # >1 s since last write: emitted at once
+assert len(r.dbuf["M1"]) == 3
+r.on_msg(pc("0.50", "12", "BUY"), t0 + 6 * S + 1)                               # restore inside the window: pending
+r.on_msg(pc("0.50", "0", "BUY"), t0 + 6 * S + 2)                                # back to last written state: pending dropped
+r.drain(t0 + 8 * S); assert len(r.dbuf["M1"]) == 3 and not r.dpend
+assert r.flush() == r.rows_min == 6  # tob: book + 5 best-level changes (unaffected by depth)
+dp = pd.read_parquet(f"{d}/depth/M1/date=2025-10-09.parquet")
+assert list(dp.columns) == ["recv_ns", "conn_id", "bid_1c", "ask_1c", "bid_2c", "ask_2c", "bid_5c", "ask_5c", "state_ns"] and len(dp) == 3
+assert (dp.recv_ns.diff().dropna() >= S).all() and (dp.state_ns <= dp.recv_ns).all()
+# one-sided book: nothing before any two-sided state; a NaN row when a two-sided book loses a side, not repeated
+d, r = mk(); r.new_conn()
+r.on_msg({**hb, "asks": []}, t0); r.drain(t0 + 2 * S); assert "M1" not in r.dbuf
+r.on_msg(hb, t0 + 3 * S); r.on_msg({**hb, "asks": []}, t0 + 5 * S); r.on_msg({**hb, "asks": []}, t0 + 7 * S); r.drain(t0 + 9 * S)
+assert len(r.dbuf["M1"]) == 2 and all(v != v for v in r.dbuf["M1"][1][2:8])
 print("test_record ok")

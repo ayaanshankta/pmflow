@@ -28,3 +28,10 @@ out = u.with_short(df, now)
 assert out.slice.value_counts().to_dict() == {"top200": 200, "short": 50} and out.market_id.is_unique
 assert "past" not in set(out.market_id) and "far" not in set(out.market_id) and "t0s" in set(out[out.slice == "short"].market_id)
 print("slice ok")
+from universe import econ
+e = econ({"orderPriceMinTickSize": 0.001, "rewardsMinSize": 200, "rewardsMaxSpread": 5.5, "feesEnabled": True, "feeType": "politics_fees",
+          "feeSchedule": {"exponent": 1, "rate": 0.04, "takerOnly": True, "rebateRate": 0.25}, "makerBaseFee": 1000,
+          "clobRewards": [{"rewardsDailyRate": 55}, {"rewardsDailyRate": 5}]})
+assert (e["tick_size"], e["rewards_min_size"], e["rewards_max_spread"], e["reward_daily_rate"], e["fee_rate"], e["fee_rebate_rate"]) == (0.001, 200, 5.5, 60, 0.04, 0.25)
+assert econ({})["tick_size"] is None and econ({})["reward_daily_rate"] == 0 and econ({"feeSchedule": None})["fee_rate"] is None
+print("econ ok")
