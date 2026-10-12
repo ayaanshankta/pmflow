@@ -203,11 +203,16 @@ def bar(rows, episodes_by_fam, complete_only=True):
     return tot, fams
 
 
-def run(tob, raw, out):
+def run(tob, raw, out, universe=None):
+    """Families come from the stored universe columns when `universe` has them, else from the saved Gamma events (older recordings)."""
     import families
     frames = load_frames(tob)
     tl = make_timeline(frames)
-    fam_map = families.build(json.loads(Path(raw).read_text()))
+    u = pd.read_parquet(universe) if universe and Path(universe).exists() else None
+    if u is not None and {"family_kind", "family_key", "family_size", "event_id"} <= set(u.columns):
+        fam_map = families.from_universe(u, frames.keys())
+    else:
+        fam_map = families.build(json.loads(Path(raw).read_text()))
     rows, eps = [], {}
     for fam in fam_map["families"]:
         if fam["n_recorded"] < 2:
@@ -269,12 +274,13 @@ if __name__ == "__main__":
     ap.add_argument("--tob", default="data/tob/polymarket")
     ap.add_argument("--raw", default="data/sets_gamma_events_raw.json")
     ap.add_argument("--out", default="data/sets_out")
+    ap.add_argument("--universe", help="universe parquet (or a dated history copy); its family columns replace the Gamma lookup when present")
     ap.add_argument("--fetch", action="store_true", help="re-fetch Gamma events for the markets under --tob into --raw first")
     a = ap.parse_args()
     if a.fetch:
         import families
         Path(a.raw).write_text(json.dumps(families.fetch(families.recorded_markets(a.tob))))
-    fam_map, rows, eps, tl = run(a.tob, a.raw, a.out)
+    fam_map, rows, eps, tl = run(a.tob, a.raw, a.out, a.universe)
     (Path(a.out) / "tables.md").write_text(report_md(fam_map, rows, eps, tl))
     df = pd.DataFrame(rows)
     pd.set_option("display.width", 250, "display.max_columns", 50, "display.max_rows", 200)
