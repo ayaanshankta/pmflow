@@ -1,5 +1,14 @@
 # C2 result: do sibling markets lag the leader? (Polymarket-v1 trade archive, 2025)
 
+> **Verifier findings (2026-10-12; independent code on the raw fills; every number reproduces exactly, 0 disagreements on 46,920 traded pairs; jump detection re-derived on 350 families with 2,532 of 2,532 matching; no direction bug).**
+> 1. What stands: sibling last-trade prices carry about +0.2 points of drift after a leader jump, and entering at observed trades is unprofitable at any plausible fee with near-zero visible flow. Without sports and near-resolution jumps (19 % of jumps) nothing changes: gross +0.18, difference +0.15 [0.10, 0.19].
+> 2. What does NOT follow: that quotes do not lag. **56 % of siblings never trade in the 15 minutes after a jump**, the median age of a sibling's last trade before the jump is 33 minutes, and a pair with no trade is scored "unchanged" by construction. "71 % already in the price at the first trade" means the first trade printed at the new level; trades cannot tell a fast market from one nobody touched.
+> 3. The sign rule for exclusive families was weak (my design, not a bug): "opposite to the leader" is only right on average. In price-bracket families neighbouring brackets follow the underlying. Only 57 % of moved pairs go the implied way; unsigned excess movement is +0.63 points against +0.20 signed. A hindsight-sign ceiling is about +1.1 points gross for exclusive families (a ceiling, not a strategy).
+> 4. After-the-fact cuts (about 15 looked at, no correction): top sibling only +0.36 gross / −0.71 net; leader ≥ 10 points −0.26 [−0.81, +0.30] net; two-member families +2.47 [+0.12, +5.11] on 149 jumps, which falls to +0.61 [−0.68, +2.13] on 80 once near-resolution jumps are dropped. None is a finding.
+> 5. The fee is hypothetical for 2025: the archive shows a fee of 0 on every sampled 2025 fill. The gross figure is the one that matters.
+> 6. The test that could settle it needs standing quotes and sizes on whole families, with direction taken from the price arithmetic and not from a sign rule.
+
+
 **Verdict: NO. Siblings do catch up after a leader jump, but by about 0.15-0.25 points gross, which is a fraction of the round-trip venue fee; no cell of the test half clears the pre-registered bar.**
 At Δ = 30 s with the venue fee on the test half (pooled): mean **−0.506 pts per share, 95 % cluster-bootstrap CI [−0.556, −0.457], 21,482 jumps; median available volume $0** (bar: mean > 0 with CI excluding 0 on ≥ 100 jumps AND median available ≥ $200). Both family kinds fail separately too (exclusive −0.501 [−0.568, −0.439]; ladder −0.516 [−0.596, −0.441]).
 
