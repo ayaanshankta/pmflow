@@ -30,11 +30,11 @@ ev = event, pl = placebo (20 random times per pair, same market, +-3 d, +-2 h ar
 ## Exploratory splits (NOT pre-registered; post-hoc, for interpretation only)
 | subset | pairs | moved | median t_move s | share of pairs with a >=2pt move within 120 s |
 |---|---|---|---|---|
-| all | 1993 | 344 | 682 | 3.4 % (placebo 1.6 %*) |
+| all | 1993 | 344 | 682 | 3.4 % |
 | top market of each event only | 400 | 49 | 493 | 3.8 % |
 | market had >=5,000 fills in prior 7 d | 1144 | 231 | 603 | 5.0 % (placebo 1.8 %) |
+| market had >=1,000 fills in prior 7 d | 1555 | 296 | 640 | 4.2 % (placebo 1.6 %) |
 | >=100 fills in the hour before | 488 | 206 | 506 | 11.1 % |
-*placebo share for the >=1000-fill subset: 1.6 %, 4.2 % event.
 The most liquid, most clearly on-topic reactions are fast (examples above: first >=2-pt fill 13-33 s after t0 for the Iran ceasefire, Khamenei, Maduro, Lebanon posts), but they are a small minority of keyword-matched pairs.
 
 ## Verdict
