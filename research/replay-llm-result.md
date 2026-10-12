@@ -1,5 +1,14 @@
 # Latency replay, LLM-direction arm (addendum B2)
 
+> **Verifier findings (2026-10-12, independent fill/exit/PnL/bootstrap code; headline numbers reproduce: n=226 over 122 posts, gross +1.70, venue-fee +1.20, event minus placebo +1.67 [+0.36, +3.61]).**
+> 1. **One post supplies about half of it.** The Maduro post of 2026-01-03 is 190 of 385 total points (49 %), across four related markets; three posts together are 74 %. Without that one post: diff **+0.84 [+0.24, +1.52]** (n=222). Without all three: +0.44 [+0.07, +0.84]. Dropping the top 5 trades: +0.74 [+0.21, +1.36].
+> 2. **226 trades are 122 independent bets at most.** 77 % of trades share a post with another market. One averaged trade per post: +0.96 [+0.23, +2.04]; median per-post difference +0.11; 59 % positive.
+> 3. The "larger edge before February" is that one event: without it the early half is +0.70, so the before/after split says nothing about memorisation either way.
+> 4. Placebo is fair on mechanics and price level (mean entry 0.404 vs 0.421; reweighting changes the difference by 0.007). One asymmetry by construction: 19.5 % of event windows contain another matched post, 0 % of placebo; excluding those trades leaves +1.64 [+0.14, +3.98].
+> 5. **Size.** Where checked, the Maduro markets had $1k-$11k traded within 2c of entry in ~5 s, so $500 is plausible there. Three of the Iran winners had $553, $23 and $10 within 2c: those gains would not have been available at size. Five of the top ten were not size-checked.
+> 6. So: a small positive gross difference (roughly +0.4 to +1.0 points) survives removing the outliers and collapsing to one bet per post, against a venue fee of the same order. Not an after-cost edge; memorisation is tested separately (B3).
+
+
 Rules: `research/ml-rules.md` section B + addendum B2 + "B2 addition". Prompt: `research/replay-llm-prompt.md` (commit 1f2610f, made before the first model call). Code: `replay_llm.py` (+ `test_replay_llm.py`); engine is `replay_truth.py` unchanged. Same 400 events / 1,993 pairs / placebo generator / bootstrap (1,000 event-cluster draws, RandomState(0)) as Result 3. Full tables: `results/replay_llm_table.md`; raw model answers: `results/replay_llm_dirs.jsonl`; summary `results/replay_llm_summary.json`.
 
 ## Verdict
