@@ -4,5 +4,5 @@ t = pd.concat([pq.read_table(f, columns=["recv_ns"]).to_pandas() for f in glob.g
 s = pd.to_datetime(t.recv_ns.sort_values().reset_index(drop=True), utc=True); g = s.diff().dt.total_seconds()
 for i in g[g > 90].index: print("gap %.1f min from %s UTC" % (g[i] / 60, s[i - 1].strftime("%Y-%m-%d %H:%M:%S")))
 print("last row", s.iloc[-1].strftime("%Y-%m-%d %H:%M:%S"), "UTC")
-tf = glob.glob("data/trades/polymarket/*/date=*.parquet")
+tf = glob.glob("data/trades/polymarket/date=*/part-*.parquet")
 print("last trade row", pd.to_datetime(max(pq.read_table(f, columns=["recv_ns"]).to_pandas().recv_ns.max() for f in tf), unit="ns", utc=True).strftime("%Y-%m-%d %H:%M:%S") + " UTC" if tf else "none")

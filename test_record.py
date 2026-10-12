@@ -1,4 +1,4 @@
-import os, json, tempfile, pandas as pd
+import os, glob, json, tempfile, pandas as pd
 from record_polymarket import Recorder
 
 d = tempfile.mkdtemp()
@@ -43,6 +43,7 @@ assert len(open(d + "/res.jsonl").read().splitlines()) == 1
 assert Recorder({"YES1": "M1"}, out=d, conn_file=d + "/conn.txt", depth=d + "/depth").conn_id == 2
 
 # ---- recorder2: trades, depth, ticks; tob output pinned to the pre-change recorder on the same stream ----
+from streams import read_stream
 from fixture_stream import STREAM, DAY1, BOOK, TICK, pc, S
 mk = lambda: (lambda d: (d, Recorder({"YES1": "M1"}, out=d + "/tob", conn_file=d + "/c.txt", resolved=d + "/r.jsonl",
               trades=d + "/trades", depth=d + "/depth", ticks=d + "/ticks.jsonl")))(tempfile.mkdtemp())
@@ -57,7 +58,7 @@ for day, rows in PIN.items():
     assert list(g.columns) == ["recv_ns", "conn_id", "bid_px", "ask_px", "bid_sz", "ask_sz"]
     assert g.to_dict("split")["data"] == rows and g.recv_ns.dtype == "int64" and g.conn_id.dtype == "int64", (day, g)
 # trade: one row, exchange timestamp kept
-tr = pd.read_parquet(f"{d}/trades/M1/date=2025-10-09.parquet")
+tr = read_stream(d + "/trades", "M1", DAY1, DAY1 + S)
 assert len(tr) == 1 and tr.iloc[0][["recv_ns", "conn_id", "price", "size", "side", "exch_ts_ms"]].tolist() == [DAY1 + 2, 1, .46, 12.5, "SELL", 1760000000123]
 assert tr.tx_hash.iloc[0] == "0xabc"
 # tick change: jsonl with recv_ns
@@ -88,7 +89,7 @@ r.on_msg(pc("0.50", "12", "BUY"), t0 + 6 * S + 1)                               
 r.on_msg(pc("0.50", "0", "BUY"), t0 + 6 * S + 2)                                # back to last written state: pending dropped
 r.drain(t0 + 8 * S); assert len(r.dbuf["M1"]) == 3 and not r.dpend
 assert r.flush() == r.rows_min == 6  # tob: book + 5 best-level changes (unaffected by depth)
-dp = pd.read_parquet(f"{d}/depth/M1/date=2025-10-09.parquet")
+dp = read_stream(d + "/depth", "M1", t0, t0 + 10 * S).drop(columns="market_id")
 assert list(dp.columns) == ["recv_ns", "conn_id", "bid_1c", "ask_1c", "bid_2c", "ask_2c", "bid_5c", "ask_5c", "state_ns"] and len(dp) == 3
 assert (dp.recv_ns.diff().dropna() >= S).all() and (dp.state_ns <= dp.recv_ns).all()
 # one-sided book: nothing before any two-sided state; a NaN row when a two-sided book loses a side, not repeated
@@ -96,4 +97,18 @@ d, r = mk(); r.new_conn()
 r.on_msg({**hb, "asks": []}, t0); r.drain(t0 + 2 * S); assert "M1" not in r.dbuf
 r.on_msg(hb, t0 + 3 * S); r.on_msg({**hb, "asks": []}, t0 + 5 * S); r.on_msg({**hb, "asks": []}, t0 + 7 * S); r.drain(t0 + 9 * S)
 assert len(r.dbuf["M1"]) == 2 and all(v != v for v in r.dbuf["M1"][1][2:8])
+# part files: one per flush, no rewrite, none when empty; markets together; reader filters market + time; day split
+d, r = mk(); r.t2m["YES2"] = "M2"; r.books["YES2"] = ({}, {}); r.new_conn()
+tr2 = lambda tok, ns, px: ({**TRADE, "asset_id": tok, "price": px}, ns)
+for m, ns in (tr2("YES1", DAY1, "0.40"), tr2("YES2", DAY1 + 1, "0.41"), tr2("YES1", DAY1 + 2, "0.42")): r.on_msg(m, ns)
+r.flush()
+parts = sorted(glob.glob(d + "/trades/date=*/part-*.parquet")); assert len(parts) == 1
+assert "date=2025-10-09/part-" in parts[0] and pd.read_parquet(parts[0]).market_id.tolist() == ["M1", "M2", "M1"]
+r.flush(); assert len(glob.glob(d + "/trades/date=*/part-*.parquet")) == 1              # nothing new -> no file
+m0 = os.path.getmtime(parts[0])
+r.on_msg(*tr2("YES1", DAY1 + 86_400 * S, "0.43")); r.on_msg(*tr2("YES1", DAY1 + 86_400 * S + 1, "0.44")); r.flush()
+fs = sorted(glob.glob(d + "/trades/date=*/part-*.parquet")); assert len(fs) == 2 and os.path.getmtime(parts[0]) == m0   # earlier part untouched
+x = read_stream(d + "/trades", "M1", DAY1, DAY1 + 2 * 86_400 * S)
+assert x.price.tolist() == [0.40, 0.42, 0.43, 0.44] and read_stream(d + "/trades", "M2", DAY1, DAY1 + 2 * 86_400 * S).price.tolist() == [0.41]
+assert read_stream(d + "/trades", "M1", DAY1 + 1, DAY1 + 2).price.tolist() == [0.42] and read_stream(d + "/trades", "NOPE", DAY1, DAY1 + S).empty
 print("test_record ok")

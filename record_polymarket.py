@@ -1,11 +1,12 @@
 """24/7 top-of-book recorder, Polymarket YES tokens. WS market channel; REST POST /books fallback.
 Rows -> data/tob/polymarket/{market_id}/date=YYYY-MM-DD.parquet {recv_ns, conn_id, bid_px, ask_px, bid_sz, ask_sz}.
-Also (2026-10-12, recorder2): data/trades/polymarket/{mkt}/date=*.parquet  last_trade_price events,
-  data/depth/polymarket/{mkt}/date=*.parquet  resting size within 1/2/5 c of mid (changes only, rows >= 1 s apart per market),
+Also (2026-10-12, recorder2): data/trades/polymarket/date=*/part-HHMMSS.parquet  last_trade_price events (market_id column; one part file per flush),
+  data/depth/polymarket/date=*/part-HHMMSS.parquet  resting size within 1/2/5 c of mid (changes only, rows >= 1 s apart per market),
   data/ticks/polymarket.jsonl  tick_size_change events.  tob schema/semantics unchanged.
 Usage: python record_polymarket.py [minutes]   (default: run forever)"""
 import asyncio, json, logging, os, sys, time, datetime as dt
 import pandas as pd, requests, websockets
+from streams import write_part
 
 WS = "wss://ws-subscriptions-clob.polymarket.com/ws/market"
 BOOKS = "https://clob.polymarket.com/books"
@@ -128,17 +129,18 @@ class Recorder:
         return n
 
     def flush(self):
-        """Write all streams. Returns top-of-book rows written (as before); trades/depth are in self.n_trades/n_depth."""
+        """Top-of-book first (rewrite-per-day files, unchanged), then each side stream as an append-only part file
+        in its own try/except. Returns tob rows written; trades/depth counts are in self.n_trades/n_depth."""
         buf, self.buf = self.buf, {}
         tb, self.tbuf = self.tbuf, {}
         db, self.dbuf = self.dbuf, {}
         i64 = {"recv_ns": "int64", "conn_id": "int64"}
-        try:
-            self._write(tb, TCOLS, self.trades, {**i64, "exch_ts_ms": "Int64"})
-            self._write(db, DCOLS, self.depth, {**i64, "state_ns": "int64"})
-        except Exception as e:  # a failed side stream must not lose the top-of-book rows
-            logging.warning("side-stream flush failed %r", e)
-        return self._write(buf, COLS, self.out, i64)
+        n = self._write(buf, COLS, self.out, i64)
+        for b, cols, root, dt_ in ((tb, TCOLS, self.trades, {**i64, "exch_ts_ms": "Int64"}),
+                                   (db, DCOLS, self.depth, {**i64, "state_ns": "int64"})):
+            try: write_part(b, cols, root, dt_)
+            except Exception as e: logging.warning("side-stream flush failed (%s): %r", root, e)
+        return n
 
 async def ws_session(rec, tokens, deadline):
     async with websockets.connect(WS, ping_interval=None, max_size=None) as ws:
