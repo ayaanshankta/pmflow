@@ -13,3 +13,10 @@
 - Metrics: mean PnL per trade in points and $, bootstrap 95 % CI over events, hit rate, n; placebo = same rule at the placebo times. Pass bar: mean PnL at 1 % fee > 0 with CI excluding 0 on ≥ 100 trades.
 ## Honesty
 Rules committed before running (this file's blob hash is cited in results). No variant is dropped; every variant run is reported.
+
+## B2. Addendum, committed 2026-10-12 00:00 CDT, before it is run — LLM-direction arm
+Reason: the lexicon direction rule returned no direction for 619 of 677 liquid event pairs (91 %), so arm B's "lexicon" test had 31-37 trades and little power; the "oracle" arm is momentum-following, not news-reading. The real question (does READING the post give a tradeable direction?) is untested.
+- Direction: Claude Haiku via `claude -p --model haiku`, given only the post text and the market's slug-as-question, answers up / down / none for the YES price (fixed prompt committed in research/replay-llm-prompt.md before any call; no post-t0 information in the prompt). Applied to the same 677 liquid event pairs; at placebo times the event's own LLM direction is held fixed (same convention as the lexicon arm).
+- Everything else identical to section B (Δ ∈ {2,10,30} s, $500, same fill/exit rules, fees 0/1/2 %, event-cluster bootstrap, same seeds). Note the LLM's own latency (~3 s) makes Δ = 2 s unachievable in practice; report all three anyway.
+- Leakage check: the model's training data may include these events (posts are Oct 2025-Apr 2026). Report results separately for posts before and after 2026-02-01 and say plainly that memorisation cannot be excluded.
+- Pass bar unchanged: mean PnL at 1 % fee > 0 with 95 % CI excluding 0 on ≥ 100 trades. Also report event minus placebo.
