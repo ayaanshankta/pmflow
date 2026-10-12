@@ -82,7 +82,7 @@ def main(stage):
     score = {"baseline": np.nan_to_num(D.rate.values[te], nan=0.0), "price_only": M["price_only_move"].predict_proba(P[te])[:, 1], "text_emb": M["text_emb_move"].predict_proba(F[te])[:, 1]}
     for k, s in score.items(): out["models"][k] = dict(auc_move=float(roc_auc_score(y, s)))
     out["calibration_text_emb"] = calib(y, score["text_emb"]); out["calibration_price_only"] = calib(y, score["price_only"])
-    mv = te & (D.y_move.values == 1); yd = (D.y_dir.values[mv] > 0).astype(int); grp = (D.cid.values[mv].astype(str) + "_" + (D.t.values[mv] // 86400).astype(str))
+    mv = te & (D.y_move.values == 1); yd = (D.y_dir.values[mv] > 0).astype(int); grp = np.char.add(np.char.add(D.cid.values[mv].astype(str), "_"), (D.t.values[mv] // 86400).astype(str))
     out["up_share_movers"] = float(yd.mean()); out["majority_class_acc"] = float(max(yd.mean(), 1 - yd.mean()))
     for k, A in (("price_only", P), ("text_emb", F)):
         ok = ((M[k + "_dir"].predict_proba(A[mv])[:, 1] > .5) == yd); lo, hi = wilson(int(ok.sum()), len(ok))
