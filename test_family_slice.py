@@ -60,3 +60,13 @@ def test_from_universe_matches_api_map():
     byev = {f["event_id"]: f for f in fm["families"]}
     assert byev["E1"]["complete"] and not byev["E2"]["complete"]   # E2 has a member without a book: never complete
     assert [m["market_id"] for m in byev["E4"]["members"]] == ["d3", "d2", "d1"]  # weakest first
+
+
+def test_pinned_added_whole_and_labelled():
+    import pandas as pd, universe as U
+    df = pd.DataFrame(dict(market_id=["a", "b", "c", "d"], event_id=["1", "9", "9", "9"], volume24hr=[5.0, 1.0, 0.5, 0.0]))
+    top = df.head(2).assign(slice="top200")                      # "b" (event 9) is already in the universe
+    out = U.with_pinned(df, top, ids=("9",))
+    assert out.market_id.tolist() == ["a", "b", "c", "d"]        # the rest of event 9 is added, nothing duplicated
+    assert out.set_index("market_id").slice.to_dict() == {"a": "top200", "b": "top200", "c": "pinned", "d": "pinned"}
+    assert U.with_pinned(df, top, ids=("404",)).equals(top)      # unknown event: unchanged

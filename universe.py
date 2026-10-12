@@ -6,6 +6,9 @@ import pandas as pd, requests
 GAMMA = "https://gamma-api.polymarket.com/events"
 FAMILY_CAP = 450  # total markets after the 'family' slice; recorder was ~250 markets at ~10 % of one core
 TOP_N = 200
+# Events always recorded whole, whatever their volume (slice='pinned'), because a known release will hit them.
+# 2026-10-12: US CPI for September (annual, monthly, core MoM, core YoY; release Wed 2026-10-14 12:30 UTC) and PPI YoY (Thu 10-15).
+PINNED_EVENTS = ("1005013", "1005014", "1005015", "1005022", "1006134")
 SHORT_N, SHORT_DAYS = 50, 7  # 'short-dated': most-active markets ending within a week
 GENERIC = {"All", "Featured", "United States", "Politics", "Elections", "World"}
 SPORTS_KW = [
@@ -34,6 +37,20 @@ def fetch_events():
         page = r.json()
         if not page: return out
         out += page; off += len(page)
+
+def fetch_pinned(ev, ids=PINNED_EVENTS):
+    """Append pinned events that the liquidity-ordered paging did not reach (they can be far down the list)."""
+    have = {str(e["id"]) for e in ev}
+    for i in ids:
+        if i in have: continue
+        r = requests.get(GAMMA, params=dict(id=i), timeout=30)
+        if r.ok and r.json(): ev = ev + r.json()[:1]
+    return ev
+
+def with_pinned(df, top, ids=PINNED_EVENTS):
+    """Add every eligible market of the pinned events that is not already in `top`, as slice='pinned'. Existing rows keep their slice."""
+    add = df[df.event_id.astype(str).isin(ids) & ~df.market_id.isin(top.market_id)].assign(slice="pinned")
+    return pd.concat([top, add], ignore_index=True) if len(add) else top
 
 def with_short(df, now=None):
     """Top-N by volume24hr ('top200') unioned with the SHORT_N most active markets whose end_date is within SHORT_DAYS ('short').
@@ -124,9 +141,9 @@ def with_family(df, top, cap=FAMILY_CAP):
     return (pd.concat([top, *add], ignore_index=True) if add else top), left
 
 if __name__ == "__main__":
-    ev = fetch_events()
+    ev = fetch_pinned(fetch_events())
     df, n_sports = build(ev, sports_tag_ids())
-    top, left_out = with_family(df, with_short(df))
+    top, left_out = with_family(df, with_pinned(df, with_short(df)))
     out = top.drop(columns="cat1")
     out.to_parquet("data/universe_polymarket.parquet", index=False)
     os.makedirs("data/universe_history", exist_ok=True)  # reward/fee settings per day; a second run on the same UTC day overwrites that day's copy
