@@ -83,3 +83,13 @@ def test_cap_arg_and_pinned_over_cap():
     assert (out[out.slice == "pinned"].market_id.tolist() == ["c1", "c2", "c3", "c4"])
     out, left = U.with_family(df, top, cap=7); assert len(out) == 7 and left == 3   # exactly at the cap: still no family fits
     out, left = U.with_family(df, top, cap=9); assert set(out[out.slice == "family"].market_id) == {"d2", "d3"} and left == 2   # fits whole or not at all
+
+
+def test_universe_order_is_deterministic_on_ties():
+    import universe as U, inspect
+    src = inspect.getsource(U.build)
+    assert '"market_id"' in src and 'kind="stable"' in src        # the selection sort breaks volume ties on market_id
+    import pandas as pd
+    df = pd.DataFrame(dict(market_id=["b", "a", "d", "c"], volume24hr=[1.0, 1.0, 0.0, 0.0]))
+    out = df.sort_values(["volume24hr", "market_id"], ascending=[False, True], kind="stable").market_id.tolist()
+    assert out == ["a", "b", "c", "d"]

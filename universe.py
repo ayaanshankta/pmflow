@@ -100,7 +100,7 @@ def build(events, sport_ids=frozenset()):
                 category="|".join(labels), cat1=next((l for l in labels if l not in GENERIC and not l.startswith(("Earn", "Rewards"))), "none"),
                 liquidity=float(m.get("liquidityNum") or m.get("liquidity") or 0),
                 volume24hr=float(m.get("volume24hr") or 0), end_date=m.get("endDate"), fetched_utc=now, **econ(m)))
-    df = pd.DataFrame(rows).drop_duplicates("market_id").sort_values("volume24hr", ascending=False)
+    df = pd.DataFrame(rows).drop_duplicates("market_id").sort_values(["volume24hr", "market_id"], ascending=[False, True], kind="stable")  # tie-break on id: same universe on every machine
     return df.assign(**family_cols(events, df)), n_sports
 
 def family_cols(events, df):
