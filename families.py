@@ -34,6 +34,7 @@ DEFINITIONS (C1)
  Dropped groups are counted with a reason in the output.
 """
 import argparse, json, re, sys, time
+import pandas as pd
 from pathlib import Path
 import requests
 
@@ -166,6 +167,30 @@ def build(raw, record_start=RECORD_START):
             fams.append(dict(kind="ladder", event_id=eid, key=f"{eid}:{t}", title=e.get("title"), direction=direction, template=t,
                              n_members=len(mem), n_recorded=n, complete=n == len(mem), members=mem))
     return dict(rules_blob="1582327e1f20", record_start=record_start, n_recorded_markets=len(rec), families=fams, dropped=dropped)
+
+
+def from_universe(u, recorded):
+    """Family map (same shape as build()) from the stored universe columns event_id / family_kind / family_key / family_rank /
+    family_size, so no API call is needed. `u` is a universe parquet DataFrame (or a dated history copy), `recorded` the set of
+    market ids that have data. Complete = every member of the family (family_size, which counts members without a book) recorded."""
+    rec, fams = set(recorded), []
+    d = u[u.family_kind.isin(["exclusive", "ladder"])]
+    for key, g in d.groupby("family_key", sort=False):
+        mem = []
+        for r in g.itertuples():
+            fr = getattr(r, "fee_rate", None)
+            ok = fr is not None and fr == fr
+            mem.append(dict(market_id=r.market_id, question=r.question, title=(r.question or "")[-40:], end=r.end_date, recorded=r.market_id in rec,
+                            fee_rate=float(fr) if ok else DEFAULT_RATE, fee_from_schedule=bool(ok), rank=0 if pd.isna(r.family_rank) else int(r.family_rank)))
+        n = sum(m["recorded"] for m in mem)
+        size = max(int(g.family_size.iloc[0]), len(mem))
+        if n:
+            kind = g.family_kind.iloc[0]
+            if kind == "ladder":
+                mem.sort(key=lambda m: m["rank"])
+            fams.append(dict(kind=kind, event_id=str(g.event_id.iloc[0]), key=str(key), title=str(g.question.iloc[0])[:60], n_members=size,
+                             n_recorded=n, complete=n == size, members=mem))
+    return dict(rules_blob="1582327e1f20", source="universe", families=fams, dropped=[])
 
 
 def summary(out):

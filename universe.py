@@ -4,6 +4,7 @@ import json, os, re, datetime as dt
 import pandas as pd, requests
 
 GAMMA = "https://gamma-api.polymarket.com/events"
+FAMILY_CAP = 450  # total markets after the 'family' slice; recorder was ~250 markets at ~10 % of one core
 TOP_N = 200
 SHORT_N, SHORT_DAYS = 50, 7  # 'short-dated': most-active markets ending within a week
 GENERIC = {"All", "Featured", "United States", "Politics", "Elections", "World"}
@@ -83,16 +84,59 @@ def build(events, sport_ids=frozenset()):
                 liquidity=float(m.get("liquidityNum") or m.get("liquidity") or 0),
                 volume24hr=float(m.get("volume24hr") or 0), end_date=m.get("endDate"), fetched_utc=now, **econ(m)))
     df = pd.DataFrame(rows).drop_duplicates("market_id").sort_values("volume24hr", ascending=False)
-    return df, n_sports
+    return df.assign(**family_cols(events, df)), n_sports
+
+def family_cols(events, df):
+    """event_id / family_kind ('exclusive'|'ladder'|'none') / family_key / family_rank (ladders) / family_size for every row of df.
+    Classification is families.py (C1 definitions); family_size counts all members of the family incl. ones without a book."""
+    import families
+    ids = set(df.market_id)
+    fm = families.build(dict(recorded=list(ids), events={str(e["id"]): e for e in events}))
+    info = {}
+    for f in fm["families"]:
+        for m in f["members"]:
+            if m["market_id"] in ids:
+                info[m["market_id"]] = (f["event_id"], f["kind"], f["key"], m.get("rank"), f["n_members"])
+    ev = {m["conditionId"]: str(e["id"]) for e in events for m in e.get("markets") or [] if m["conditionId"] in ids}
+    get = lambda i, j, dflt: [info.get(m, (ev.get(m),) + (dflt,) * 4)[j] for m in df.market_id]
+    return dict(event_id=[ev.get(m) for m in df.market_id], family_kind=get(0, 1, "none"), family_key=get(0, 2, None),
+                family_rank=pd.array(get(0, 3, None), dtype="Int64"), family_size=pd.array(get(0, 4, None), dtype="Int64"))
+
+def with_family(df, top, cap=FAMILY_CAP):
+    """Add slice='family': for every exclusive family / ladder with >= 1 market already in `top`, all its other eligible (book-enabled,
+    non-sports, rows of df) markets. Families are taken in order of the share of their 24h volume already in the universe and ADDED WHOLE
+    or not at all (a family that would pass `cap` is skipped; smaller ones may still fit). Existing rows keep their slice.
+    Returns (universe, n_families_left_out_by_cap)."""
+    have_ids, total, left, add = set(top.market_id), len(top), 0, []
+    cands = []
+    for key, g in df[df.family_kind.isin(["exclusive", "ladder"])].groupby("family_key"):
+        have = g.market_id.isin(have_ids)
+        if not have.any() or have.all():
+            continue
+        vt, vi = g.volume24hr.sum(), g[have].volume24hr.sum()
+        cands.append((-(vi / vt if vt > 0 else 0.0), -vi, key, g[~have]))
+    for _, _, key, miss in sorted(cands, key=lambda c: c[:3]):
+        if total + len(miss) > cap:
+            left += 1
+            continue
+        add.append(miss.assign(slice="family"))
+        total += len(miss)
+    return (pd.concat([top, *add], ignore_index=True) if add else top), left
 
 if __name__ == "__main__":
     ev = fetch_events()
     df, n_sports = build(ev, sports_tag_ids())
-    top = with_short(df)
+    top, left_out = with_family(df, with_short(df))
     out = top.drop(columns="cat1")
     out.to_parquet("data/universe_polymarket.parquet", index=False)
     os.makedirs("data/universe_history", exist_ok=True)  # reward/fee settings per day; a second run on the same UTC day overwrites that day's copy
     out.to_parquet(f"data/universe_history/universe_{dt.datetime.now(dt.timezone.utc):%Y-%m-%d}.parquet", index=False)
     print(f"events={len(ev)} eligible_nonsports={len(df)} excluded_sports={n_sports} kept={len(top)}")
-    print("slices:", top.slice.value_counts().to_dict())
+    print("slices:", top.slice.value_counts().to_dict(), "total", len(top), "families left out by cap:", left_out)
+    import families
+    fm = families.build(dict(recorded=list(top.market_id), events={str(e["id"]): e for e in ev}))
+    c = {}
+    for f in fm["families"]:
+        c[(f["kind"], f["complete"])] = c.get((f["kind"], f["complete"]), 0) + 1
+    print("C1 families with >= 1 market in universe (kind, complete): n =", c)
     print(top.cat1.value_counts().to_string())
