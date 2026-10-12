@@ -40,3 +40,42 @@ B2 values reproduce the committed result exactly. Event-only mean PnL: C1 -0.18 
 
 ## Remaining unknowns
 Out-of-sample posts after the model's cutoff (the collector keeps recording); whether the model's directions are stable across repeated calls; spread and impact on the trades that carry the B2 mean.
+
+---
+
+# Addendum B3b: forced-choice, no-post control
+
+Rules: `research/ml-rules.md` B3b. Prompt: appended to `research/replay-llm-controls.md` (commit afa8d1e, 01:06 CDT, before the first call). Code: `replay_controls.py --b3b`. Same 677 liquid pairs, model alias, engine and bootstrap. Cache `data/controls_c3_dirs.jsonl` (gitignored), numbers `results/replay_controls_b3b_summary.json`.
+
+## Counts
+| | |
+|---|---|
+| pairs / parse failures (excluded, never coerced) | 677 / 0 |
+| up / down | 80 / 597 (up share 11.8 %) |
+| up share on the 333 pairs where B2 gave a direction | 9.3 % (B2's own up share there: 57.7 %) |
+| spend | $0.050 of the $0.50 cap |
+| served by | claude-haiku-5-5 on all 677 |
+| event trades, first entry, 2 / 10 / 30 s: set (i) 333 pairs | 214 / 226 / 235 (same trades as B2) |
+| event trades, all 677 | 437 / 439 / 453 |
+
+## Event minus placebo, gross (0 % fee), first-trade entry, points, 95 % event-cluster CI
+| Δ s | B2 | forced choice, set (i): 333 pairs | forced choice, set (ii): all 677 |
+|---|---|---|---|
+| 2 | +1.88 [+0.40, +3.77] | -0.43 [-1.92, +0.75] | -0.29 [-1.04, +0.29] |
+| 10 | +1.67 [+0.35, +3.49] | -0.45 [-1.86, +0.68] | -0.31 [-1.04, +0.28] |
+| 30 | +1.40 [+0.32, +2.82] | -0.24 [-1.51, +0.75] | -0.21 [-0.90, +0.33] |
+
+Placebo trades: 2,940 / 2,952 / 2,896 (set i), 5,993 / 5,987 / 5,922 (set ii).
+
+## Agreement with B2's direction on the 333 pairs
+**43.8 % (146 of 333)**, 50 % = unrelated. Because the forced guess is 91 % "down" on these pairs and B2 is 58 % "up", independent answers would agree about 0.577 x 0.093 + 0.423 x 0.907 = 43.7 %. So the observed figure is what unrelatedness predicts given the skew; it is not evidence that the title guess is the opposite of B2.
+
+## Reading rule on set (i), Δ = 10 s
+- Description 1 (title-only guess recovers part of B2's edge: interval excludes 0 or estimate >= +0.84): **does not apply**. Estimate -0.45, interval [-1.86, +0.68].
+- Description 2 (estimate < +0.84, interval includes 0, AND agreement within 45-55 %): its first two conditions hold; **the agreement condition is not met as written (43.8 %, outside 45-55 %)**. Strictly, neither description is satisfied.
+- My reading, stated as a judgement and not as the rule: the 43.8 % is the independence value for these skewed marginals (above), the 95 % interval for agreement under independence at n = 333 is roughly 33 to 55 % around that value, and the forced guess has no positive edge. I read it as "B2's directions are not explained by the title alone", but the written band was missed and the rule's author should decide whether to accept that.
+
+## What this changes and what it does not
+- The title-only guess carries no positive edge: the point estimates are negative in both sets, and the 333-pair interval is again about ±1.3 points wide, now with 214-235 trades (comparable to B2's), so it is a real test of an effect of B2's size. An effect of +1.4 or more is excluded; one of +0.7 is not.
+- The model's forced title-only guess is heavily "down" (89 %), so a market-level bias toward "down" exists but did not pay.
+- Unchanged: the correct post may cue recall of what followed that specific post; only posts after the model's training cutoff remove that.
