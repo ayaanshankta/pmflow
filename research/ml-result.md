@@ -1,4 +1,12 @@
 # Result — headline → (market, direction, move) model (rules: research/ml-rules.md §A, blob a6140e5)
+
+> **Verifier findings (2026-10-12, independent re-derivation; all numbers reproduce exactly, no leakage or sign error found).**
+> 1. The +0.016 AUC gain of "text + price" over price-only is **market identity, not headline content**: an ablation gives price 0.871, price + slug embedding 0.893, price + headline 0.884, price + both 0.892; headline text on top of the slug adds −0.001. Do not say headlines help predict moves. The slug embedding was not in the pre-registered feature description.
+> 2. The "will it move" AUC (~0.88) holds for markets never seen in training (0.876 / 0.890) and mostly measures which markets are active; the placebo row shares its pair's headline text, so text cannot separate real from placebo by construction.
+> 3. Direction: no signal in any subset. Benzinga 52.0 % (always-up 52.0 %), Truth Social 47.1 % (n=121), top-decile confidence 49.5 %, |move| ≥ 0.10: 54.8 % (n=197). A price-only top-decile figure of 61.8 % is a post-hoc pick from about ten looks; exploratory only.
+> 4. Provenance: the up-or-down exclusion WAS committed with the lexicon at 23:39, before labelling. The feature set is only provable from 00:29, three minutes before the result, so its ordering against the test set cannot be shown. The crashed first test run differs from the reported one by a single line in the confidence-interval code; saved models equal a train-only refit.
+> 5. Not checkable from what is on disk: whether including the up-or-down markets changes a verdict; how often the first outcome is not "Yes" (so "up" strictly means "first outcome rises").
+
 Code: lexicon.py (a37a879, committed before labelling), ml_fetch.py, ml_dataset.py, ml_train.py, test_ml.py (80120ec). Run 2026-10-12.
 
 ## Verdict: **FAIL** (pre-registered bar needs BOTH)
