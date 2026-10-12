@@ -72,22 +72,25 @@ hb = {"event_type": "book", "asset_id": "YES1", "bids": [{"price": p, "size": s}
       "asks": [{"price": p, "size": s} for p, s in (("0.52", "4"), ("0.53", "6"), ("0.55", "8"), ("0.60", "9"))]}
 t0 = DAY1
 r.on_msg(hb, t0)
-assert r.dbuf["M1"] == [(t0, 1, 10., 4., 10., 10., 22., 18., t0)], r.dbuf          # first state: written at once
-# throttle: two changes inside 1 s -> pending, nothing written; the latest state is emitted on the next tick at/after +1 s
+assert "M1" not in r.dbuf and r.dirty == {"YES1": t0}                           # on_msg only marks the token (depth is off the per-message path)
+r.drain(t0)
+assert r.dbuf["M1"] == [(t0, 1, 10., 4., 10., 10., 22., 18., t0)], r.dbuf          # first state: written by the first drain
+# throttle: changes inside 1 s -> only marked, nothing computed; the book as it is then is computed on the first drain at/after +1 s
 r.on_msg(pc("0.50", "11", "BUY"), t0 + S // 5)                                  # bid1c 10 -> 11
 r.on_msg(pc("0.50", "12", "BUY"), t0 + 2 * S // 5)                              # -> 12 (replaces pending)
 r.on_msg(pc("0.10", "99", "BUY"), t0 + 3 * S // 5)                              # outside 5c, tob same: no depth change
-assert len(r.dbuf["M1"]) == 1 and r.dpend["YES1"][0] == t0 + 2 * S // 5
+assert len(r.dbuf["M1"]) == 1 and r.dirty["YES1"] == t0 + 3 * S // 5            # latest change time (was: time of the first change to the pending state)
 r.drain(t0 + 9 * S // 10); assert len(r.dbuf["M1"]) == 1                        # 0.9 s: still held
 r.drain(t0 + S)
-assert r.dbuf["M1"][1] == (t0 + S, 1, 12., 4., 12., 10., 24., 18., t0 + 2 * S // 5) and not r.dpend  # recv_ns = emit time, state_ns = arrival
+assert r.dbuf["M1"][1] == (t0 + S, 1, 12., 4., 12., 10., 24., 18., t0 + 3 * S // 5) and not r.dirty  # recv_ns = emit time, state_ns = latest change (was +2/5 s)
 r.on_msg(pc("0.50", "12", "BUY"), t0 + 3 * S)                                   # same state -> no row
 r.drain(t0 + 5 * S); assert len(r.dbuf["M1"]) == 2
-r.on_msg(pc("0.50", "0", "BUY"), t0 + 6 * S)                                    # >1 s since last write: emitted at once
-assert len(r.dbuf["M1"]) == 3
-r.on_msg(pc("0.50", "12", "BUY"), t0 + 6 * S + 1)                               # restore inside the window: pending
-r.on_msg(pc("0.50", "0", "BUY"), t0 + 6 * S + 2)                                # back to last written state: pending dropped
-r.drain(t0 + 8 * S); assert len(r.dbuf["M1"]) == 3 and not r.dpend
+r.on_msg(pc("0.50", "0", "BUY"), t0 + 6 * S)                                    # >1 s since last calculation: emitted by the next drain
+r.drain(t0 + 6 * S); assert len(r.dbuf["M1"]) == 3
+r.on_msg(pc("0.50", "12", "BUY"), t0 + 6 * S + 1)                               # restore inside the window: marked
+r.on_msg(pc("0.50", "0", "BUY"), t0 + 6 * S + 2)                                # back to last written state: marked again
+r.drain(t0 + 6 * S + 3); assert len(r.dbuf["M1"]) == 3 and "YES1" in r.dirty   # throttled
+r.drain(t0 + 8 * S); assert len(r.dbuf["M1"]) == 3 and not r.dirty             # computed = last written -> no row
 assert r.flush() == r.rows_min == 6  # tob: book + 5 best-level changes (unaffected by depth)
 dp = read_stream(d + "/depth", "M1", t0, t0 + 10 * S).drop(columns="market_id")
 assert list(dp.columns) == ["recv_ns", "conn_id", "bid_1c", "ask_1c", "bid_2c", "ask_2c", "bid_5c", "ask_5c", "state_ns"] and len(dp) == 3
@@ -95,7 +98,8 @@ assert (dp.recv_ns.diff().dropna() >= S).all() and (dp.state_ns <= dp.recv_ns).a
 # one-sided book: nothing before any two-sided state; a NaN row when a two-sided book loses a side, not repeated
 d, r = mk(); r.new_conn()
 r.on_msg({**hb, "asks": []}, t0); r.drain(t0 + 2 * S); assert "M1" not in r.dbuf
-r.on_msg(hb, t0 + 3 * S); r.on_msg({**hb, "asks": []}, t0 + 5 * S); r.on_msg({**hb, "asks": []}, t0 + 7 * S); r.drain(t0 + 9 * S)
+r.on_msg(hb, t0 + 3 * S); r.drain(t0 + 3 * S); r.on_msg({**hb, "asks": []}, t0 + 5 * S); r.drain(t0 + 5 * S)
+r.on_msg({**hb, "asks": []}, t0 + 7 * S); r.drain(t0 + 7 * S); r.drain(t0 + 9 * S)
 assert len(r.dbuf["M1"]) == 2 and all(v != v for v in r.dbuf["M1"][1][2:8])
 # part files: one per flush, no rewrite, none when empty; markets together; reader filters market + time; day split
 d, r = mk(); r.t2m["YES2"] = "M2"; r.books["YES2"] = ({}, {}); r.new_conn()
@@ -111,4 +115,59 @@ fs = sorted(glob.glob(d + "/trades/date=*/part-*.parquet")); assert len(fs) == 2
 x = read_stream(d + "/trades", "M1", DAY1, DAY1 + 2 * 86_400 * S)
 assert x.price.tolist() == [0.40, 0.42, 0.43, 0.44] and read_stream(d + "/trades", "M2", DAY1, DAY1 + 2 * 86_400 * S).price.tolist() == [0.41]
 assert read_stream(d + "/trades", "M1", DAY1 + 1, DAY1 + 2).price.tolist() == [0.42] and read_stream(d + "/trades", "NOPE", DAY1, DAY1 + S).empty
+
+# ---- depth off the per-message path (pm/loop) ----
+# several changes inside a second -> ONE row: the book at calculation time, state_ns = latest change
+d, r = mk(); r.new_conn(); r.on_msg(hb, t0); r.drain(t0); r.dbuf.clear()
+for k, sz in enumerate(("11", "12", "13", "14")): r.on_msg(pc("0.50", sz, "BUY"), t0 + (k + 1) * S // 10)
+r.drain(t0 + S // 2); assert "M1" not in r.dbuf                                # inside the second: not computed
+r.drain(t0 + S)
+assert r.dbuf["M1"] == [(t0 + S, 1, 14., 4., 14., 10., 26., 18., t0 + 4 * S // 10)], r.dbuf
+# a change undone before the calculation writes nothing (and a throttled token is not computed early)
+r.on_msg(pc("0.50", "20", "BUY"), t0 + S + 1); r.on_msg(pc("0.50", "14", "BUY"), t0 + S + 2)
+r.drain(t0 + S + 3); r.drain(t0 + 3 * S); assert len(r.dbuf["M1"]) == 1 and not r.dirty
+assert r.dcalc["YES1"] == t0 + 3 * S                                            # at most one calculation per second per token
+# reconnect: pending depth is computed from the OLD book and written with the OLD conn_id; nothing from a cleared book
+r.on_msg(pc("0.50", "15", "BUY"), t0 + 3 * S + 5)                               # pending when the connection drops
+assert r.new_conn() == 2
+last = r.dbuf["M1"][-1]
+assert len(r.dbuf["M1"]) == 2 and last[1] == 1 and last[2] == 15. and last[8] == t0 + 3 * S + 5 and not r.dirty
+assert r.books["YES1"] == ({}, {}) and not r.dlast
+r.drain(t0 + 9 * S); assert len(r.dbuf["M1"]) == 2                              # cleared book: no spurious NaN row
+r.on_msg(hb, t0 + 10 * S); r.drain(t0 + 10 * S)
+assert r.dbuf["M1"][-1][1] == 2 and r.dbuf["M1"][-1][2] == 10.                  # new conn's first state carries conn_id 2
+# pending token with a cleared book never reaches _depth_state: force-drain happens before the clear (above); an error in one token is contained
+r.dirty["YES1"] = 1; r.books["YES1"] = None; r.drain(force=True); assert not r.dirty
+
+# heartbeat arithmetic on a fake clock: late = woke - slept - 0.1 s, in ms; median / max once per minute
+import asyncio, math, time as _t, record_polymarket as RP
+class FakeClock:
+    def __init__(s, extra): s.t, s.extra = 0.0, iter(extra)
+    def __call__(s): return s.t
+    async def sleep(s, p): s.t += p + next(s.extra)                              # wakes `extra` seconds late
+rec = RP.Recorder({}, conn_file=d + "/hb.txt")
+fc = FakeClock([0.0, 0.01, 0.30, 0.0, 0.05, -0.001])                            # a negative reading (clock quirk) is floored at 0
+async def run6():
+    n = 0
+    async def sl(p):
+        nonlocal n; n += 1
+        if n > 6: raise asyncio.CancelledError
+        await fc.sleep(p)
+    try: await RP.heartbeat(rec, _t.time() + 3600, clock=fc, sleep=sl)
+    except asyncio.CancelledError: pass
+asyncio.run(run6())
+assert [round(x, 3) for x in rec.late] == [0, 10, 300, 0, 50, 0], list(rec.late)
+med, mx = RP.late_stats(list(rec.late)); assert (round(med, 3), round(mx, 3)) == (5.0, 300.0)
+assert all(v != v for v in RP.late_stats([]))
+# an error inside the heartbeat never escapes
+async def boom(p): raise RuntimeError("x")
+async def run_boom():
+    n = 0
+    async def sl(p):
+        nonlocal n; n += 1
+        if n > 2: raise asyncio.CancelledError
+        await boom(p)
+    try: await RP.heartbeat(rec, _t.time() + 3600, clock=fc, sleep=sl)
+    except asyncio.CancelledError: pass
+asyncio.run(run_boom())
 print("test_record ok")

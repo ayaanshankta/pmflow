@@ -140,14 +140,22 @@ def with_family(df, top, cap=FAMILY_CAP):
         total += len(miss)
     return (pd.concat([top, *add], ignore_index=True) if add else top), left
 
+def cap_arg(argv):
+    """--cap N from argv (total-market cap for the family slice); default FAMILY_CAP."""
+    return int(argv[argv.index("--cap") + 1]) if "--cap" in argv else FAMILY_CAP
+
 if __name__ == "__main__":
+    import sys
+    cap = cap_arg(sys.argv)
     ev = fetch_pinned(fetch_events())
     df, n_sports = build(ev, sports_tag_ids())
-    top, left_out = with_family(df, with_pinned(df, with_short(df)))
+    top, left_out = with_family(df, with_pinned(df, with_short(df)), cap)  # pinned counts toward cap and is never trimmed
     out = top.drop(columns="cat1")
     out.to_parquet("data/universe_polymarket.parquet", index=False)
-    os.makedirs("data/universe_history", exist_ok=True)  # reward/fee settings per day; a second run on the same UTC day overwrites that day's copy
-    out.to_parquet(f"data/universe_history/universe_{dt.datetime.now(dt.timezone.utc):%Y-%m-%d}.parquet", index=False)
+    os.makedirs("data/universe_history", exist_ok=True)  # reward/fee settings per day; the dated copy is overwritten by a second run the same day
+    now = dt.datetime.now(dt.timezone.utc)
+    out.to_parquet(f"data/universe_history/universe_{now:%Y-%m-%d}.parquet", index=False)
+    out.to_parquet(f"data/universe_history/universe_{now:%Y-%m-%dT%H%M%S}.parquet", index=False)  # time-stamped: never overwritten
     print(f"events={len(ev)} eligible_nonsports={len(df)} excluded_sports={n_sports} kept={len(top)}")
     print("slices:", top.slice.value_counts().to_dict(), "total", len(top), "families left out by cap:", left_out)
     import families

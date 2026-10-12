@@ -1,0 +1,6 @@
+# extra libraries for ml_*.py and test_ml.py only; the recorder does not need them (requirements.txt is unchanged)
+-r requirements.txt
+joblib>=1.3
+scikit-learn>=1.3
+sentence-transformers  # ml_train.py embeddings (lazy import)
+huggingface_hub        # ml_fetch.py (lazy import)

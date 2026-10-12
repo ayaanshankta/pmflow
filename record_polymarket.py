@@ -3,8 +3,9 @@ Rows -> data/tob/polymarket/{market_id}/date=YYYY-MM-DD.parquet {recv_ns, conn_i
 Also (2026-10-12, recorder2): data/trades/polymarket/date=*/part-HHMMSS.parquet  last_trade_price events (market_id column; one part file per flush),
   data/depth/polymarket/date=*/part-HHMMSS.parquet  resting size within 1/2/5 c of mid (changes only, rows >= 1 s apart per market),
   data/ticks/polymarket.jsonl  tick_size_change events.  tob schema/semantics unchanged.
+Depth is computed in drain() (ticker, 0.1 s), not per message; heartbeat() reports event-loop lateness in the per-minute log line.
 Usage: python record_polymarket.py [minutes]   (default: run forever)"""
-import asyncio, json, logging, os, sys, time, datetime as dt
+import asyncio, collections, json, logging, os, statistics, sys, time, datetime as dt
 import pandas as pd, requests, websockets
 from streams import write_part
 
@@ -25,7 +26,8 @@ class Recorder:
         self.t2m, self.out, self.conn_file, self.resolved = tok2mkt, out, conn_file, resolved
         self.trades, self.depth, self.ticks = trades, depth, ticks
         self.tbuf, self.dbuf = {}, {}                    # market -> [trade rows] / [depth rows]
-        self.dlast, self.dpend, self.dsent = {}, {}, {}  # token -> last written state / pending (ns, state) / ns of last write
+        self.dlast, self.dirty, self.dcalc = {}, {}, {}  # token -> last written state / ns of latest change not yet computed / ns of last computation
+        self.late = collections.deque(maxlen=6000)       # event-loop lateness samples (ms) from heartbeat(), emptied once a minute
         self.n_trades = self.n_depth = 0
         self.books = {t: ({}, {}) for t in tok2mkt}      # token -> (bids{px:sz}, asks{px:sz})
         self.last, self.buf = {}, {}                     # token -> last tob tuple; market -> [rows]
@@ -35,42 +37,45 @@ class Recorder:
 
     def new_conn(self):
         """Call on every (re)connect; books are rebuilt from the fresh snapshot."""
-        self.drain(force=True)                           # pending depth rows belong to the old conn_id
+        self.drain(force=True)                           # pending depth belongs to the old conn_id and the old (not yet cleared) book
         self.conn_id += 1
         os.makedirs(os.path.dirname(self.conn_file) or ".", exist_ok=True)
         open(self.conn_file, "w").write(str(self.conn_id))
         self.books = {t: ({}, {}) for t in self.t2m}; self.last = {}
-        self.dlast, self.dpend, self.dsent = {}, {}, {}
+        self.dlast, self.dirty, self.dcalc = {}, {}, {}
         return self.conn_id
 
-    def _depth(self, tok, recv_ns):
-        """Resting size within 1/2/5 c of mid per side; queue a row if the six values changed (emitted by drain())."""
+    def _depth_state(self, tok):
+        """Resting size within 1/2/5 c of mid per side as a 6-tuple (NaNs for a one-sided/empty book). Runs only from drain()."""
         bids, asks = self.books[tok]
-        if bids and asks:
-            bp, ap = max(map(float, bids)), min(map(float, asks)); mid = (bp + ap) / 2; e = 1e-9
-            acc = [0.0] * (2 * len(BANDS))               # one pass per side (was six); runs in the event loop on every book message
-            for j, side, sgn in ((0, bids, -1.0), (1, asks, 1.0)):
-                for px, sz in side.items():
-                    d = sgn * (float(px) - mid)          # distance from mid, positive away from it
-                    for i, b in enumerate(BANDS):
-                        if d <= b + e: acc[2 * i + j] += sz
-            st = tuple(round(v, 6) for v in acc)
-        else: st = (NAN,) * 6                            # one-sided/empty book: no mid, no band
-        key = lambda t: None if t is None else tuple(None if v != v else v for v in t)
-        last = self.dlast.get(tok)
-        if key(st) == key(last): self.dpend.pop(tok, None); return          # back to the last written state
-        if tok in self.dpend and key(self.dpend[tok][1]) == key(st): return  # already pending (keep its earlier time)
-        if last is None and key(st) == key((NAN,) * 6): return              # nothing to say about an empty book yet
-        self.dpend[tok] = (recv_ns, st, self.conn_id)
+        if not (bids and asks): return (NAN,) * 6        # no mid, no band
+        bp, ap = max(map(float, bids)), min(map(float, asks)); mid = (bp + ap) / 2; e = 1e-9
+        acc = [0.0] * (2 * len(BANDS))                   # one pass per side
+        for j, side, sgn in ((0, bids, -1.0), (1, asks, 1.0)):
+            for px, sz in side.items():
+                d = sgn * (float(px) - mid)              # distance from mid, positive away from it
+                for i, b in enumerate(BANDS):
+                    if d <= b + e: acc[2 * i + j] += sz
+        return tuple(round(v, 6) for v in acc)
 
     def drain(self, now_ns=None, force=False):
-        """Emit pending depth rows whose market last wrote >= 1 s ago (or all, if force). recv_ns = emit time (so rows are >= 1 s apart); state_ns = when the state arrived."""
+        """Depth for tokens marked changed (self.dirty: token -> time of latest change), at most once per second per token
+        (force: all, ignoring the throttle; new_conn uses it). A row is written only if the six values differ from the last
+        written row. recv_ns = now (rows >= 1 s apart); state_ns = time of the latest change that led to the row; conn_id = current.
+        Called from the ticker every 0.1 s, never per message."""
         now_ns = now_ns if now_ns is not None else time.time_ns()
-        for tok in list(self.dpend):
-            ns, st, cid = self.dpend[tok]
-            if not force and now_ns - self.dsent.get(tok, -DEPTH_MIN_NS) < DEPTH_MIN_NS: continue
-            del self.dpend[tok]; self.dlast[tok] = st; self.dsent[tok] = now_ns
-            self.dbuf.setdefault(self.t2m[tok], []).append((now_ns, cid, *st, ns)); self.n_depth += 1
+        key = lambda t: None if t is None else tuple(None if v != v else v for v in t)
+        for tok in list(self.dirty):
+            if not force and now_ns - self.dcalc.get(tok, -DEPTH_MIN_NS) < DEPTH_MIN_NS: continue
+            ns = self.dirty.pop(tok, None)               # pop BEFORE computing: a change arriving meanwhile re-marks the token
+            if ns is None: continue
+            try:
+                st = self._depth_state(tok); self.dcalc[tok] = now_ns
+                last = self.dlast.get(tok)
+                if key(st) == key(last) or (last is None and key(st) == key((NAN,) * 6)): continue   # unchanged / nothing to say yet
+                self.dlast[tok] = st
+                self.dbuf.setdefault(self.t2m[tok], []).append((now_ns, self.conn_id, *st, ns)); self.n_depth += 1
+            except Exception as e: logging.warning("depth error %r", e)   # never let the new streams disturb top-of-book
 
     def _emit(self, tok, recv_ns):
         bids, asks = self.books[tok]
@@ -115,9 +120,7 @@ class Recorder:
                 with open(self.resolved, "a") as f: f.write(json.dumps({**m, "recv_ns": recv_ns}) + "\n")
             for t in touched:
                 self._emit(t, recv_ns)
-                try: self._depth(t, recv_ns)             # never let the new streams disturb top-of-book
-                except Exception as e: logging.warning("depth error %r", e)
-        self.drain(recv_ns)
+                self.dirty[t] = recv_ns                  # depth is computed later, in drain(); keep the latest change time
 
     @staticmethod
     def _write(buf, cols, out, dtypes):
@@ -133,12 +136,16 @@ class Recorder:
                 os.replace(p + ".tmp", p)
         return n
 
-    def flush(self):
+    def take(self):
+        """Swap the three buffers out. Call from the event loop (not the flush thread) so no append can land in a dict
+        that is already being written (such a row would be silently lost)."""
+        snap = (self.buf, self.tbuf, self.dbuf); self.buf, self.tbuf, self.dbuf = {}, {}, {}
+        return snap
+
+    def write(self, snap):
         """Top-of-book first (rewrite-per-day files, unchanged), then each side stream as an append-only part file
         in its own try/except. Returns tob rows written; trades/depth counts are in self.n_trades/n_depth."""
-        buf, self.buf = self.buf, {}
-        tb, self.tbuf = self.tbuf, {}
-        db, self.dbuf = self.dbuf, {}
+        buf, tb, db = snap
         i64 = {"recv_ns": "int64", "conn_id": "int64"}
         n = self._write(buf, COLS, self.out, i64)
         for b, cols, root, dt_ in ((tb, TCOLS, self.trades, {**i64, "exch_ts_ms": "Int64"}),
@@ -146,6 +153,8 @@ class Recorder:
             try: write_part(b, cols, root, dt_)
             except Exception as e: logging.warning("side-stream flush failed (%s): %r", root, e)
         return n
+
+    def flush(self): return self.write(self.take())
 
 async def ws_session(rec, tokens, deadline):
     async with websockets.connect(WS, ping_interval=None, max_size=None) as ws:
@@ -170,23 +179,42 @@ def poll_once(rec, tokens):
         ns = time.time_ns()
         for b in r.json(): rec.on_msg({**b, "event_type": "book"}, ns)
 
+def late_stats(samples):
+    """(median, max) of lateness samples in ms; (nan, nan) if none."""
+    return (statistics.median(samples), max(samples)) if samples else (NAN, NAN)
+
+async def heartbeat(rec, deadline, period=0.1, clock=time.perf_counter, sleep=asyncio.sleep):
+    """Event-loop lateness: sleep `period`, record how much later than that it woke (ms). Once a minute the flusher logs median/max.
+    Costs 10 wakeups/s; any error is swallowed (cancellation is not an Exception, so it still stops the task)."""
+    while time.time() < deadline:
+        try:
+            t0 = clock(); await sleep(period)
+            rec.late.append(max(0.0, (clock() - t0 - period) * 1000))
+        except Exception as e: logging.warning("heartbeat error %r", e); await asyncio.sleep(period)
+
 async def flusher(rec, deadline):
     while time.time() < deadline:
         await asyncio.sleep(FLUSH_S)
         t0 = time.time(); r, tr, dp = rec.rows_min, rec.n_trades, rec.n_depth; rec.rows_min = rec.n_trades = rec.n_depth = 0
-        await asyncio.to_thread(rec.flush)
-        logging.info("rows/min=%d conn_id=%d flush_s=%.2f trades=%d depth=%d", r, rec.conn_id, time.time() - t0, tr, dp)
+        snap = rec.take()                                # swapped here, in the loop; only the writing runs in the thread
+        await asyncio.to_thread(rec.write, snap)
+        try: med, mx = late_stats(list(rec.late)); rec.late.clear()
+        except Exception: med = mx = NAN
+        logging.info("rows/min=%d conn_id=%d flush_s=%.2f trades=%d depth=%d late_ms_med=%.1f late_ms_max=%.1f",
+                     r, rec.conn_id, time.time() - t0, tr, dp, med, mx)
 
 async def ticker(rec, deadline):
     while time.time() < deadline:
-        await asyncio.sleep(0.5); rec.drain()           # emit throttled depth rows even when the stream is quiet
+        await asyncio.sleep(0.1)                        # depth is computed here, per token at most once per second; 0.1 s keeps each tick small
+        try: rec.drain()
+        except Exception as e: logging.warning("drain error %r", e)
 
 async def main(minutes=None):
     u = pd.read_parquet("data/universe_polymarket.parquet")
     tok2mkt = dict(zip(u.token_id_yes, u.market_id)); tokens = list(tok2mkt)
     rec = Recorder(tok2mkt)
     deadline = time.time() + minutes * 60 if minutes else float("inf")
-    ft = asyncio.create_task(flusher(rec, deadline)); tt = asyncio.create_task(ticker(rec, deadline))
+    ft = asyncio.create_task(flusher(rec, deadline)); tt = asyncio.create_task(ticker(rec, deadline)); hb = asyncio.create_task(heartbeat(rec, deadline))
     fails, backoff = 0, 1
     while time.time() < deadline:
         try:
@@ -204,7 +232,7 @@ async def main(minutes=None):
                     except Exception as e2: logging.warning("poll error %r", e2)
                     await asyncio.sleep(max(0, 1 - (time.time() - t0)))
             await asyncio.sleep(backoff); backoff = min(backoff * 2, 60)
-    ft.cancel(); tt.cancel(); rec.drain(force=True); rec.flush()
+    ft.cancel(); tt.cancel(); hb.cancel(); rec.drain(force=True); rec.flush()
 
 if __name__ == "__main__":
     os.makedirs("data", exist_ok=True)

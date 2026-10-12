@@ -1,5 +1,6 @@
 """Checks for ml_dataset label construction, split rule, placebo draw. Run: /opt/anaconda3/bin/python3 -m pytest -q test_ml.py"""
-import numpy as np
+import numpy as np, pytest
+pytest.importorskip("joblib"); pytest.importorskip("sklearn")  # model libraries: requirements-ml.txt
 import ml_dataset as M
 from ml_train import wilson
 

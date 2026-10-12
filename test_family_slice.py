@@ -70,3 +70,16 @@ def test_pinned_added_whole_and_labelled():
     assert out.market_id.tolist() == ["a", "b", "c", "d"]        # the rest of event 9 is added, nothing duplicated
     assert out.set_index("market_id").slice.to_dict() == {"a": "top200", "b": "top200", "c": "pinned", "d": "pinned"}
     assert U.with_pinned(df, top, ids=("404",)).equals(top)      # unknown event: unchanged
+
+
+def test_cap_arg_and_pinned_over_cap():
+    import pandas as pd, universe as U
+    assert U.cap_arg(["universe.py"]) == U.FAMILY_CAP and U.cap_arg(["universe.py", "--cap", "300"]) == 300
+    df, _ = U.build([E1, E3, E4, E6])
+    pinned = df[df.market_id.isin(["c1", "c2", "c3", "c4"])].assign(slice="pinned")   # 4 pinned markets, a family split across cap
+    top = pd.concat([df[df.market_id.isin(["a1", "d1", "f1"])].assign(slice="top200"), pinned], ignore_index=True)  # 7 already in
+    out, left = U.with_family(df, top, cap=5)                                       # pinned + top already exceed the cap
+    assert out.market_id.tolist() == top.market_id.tolist() and left == 3           # nothing added, nothing trimmed (c5/c6 of E3 are not added)
+    assert (out[out.slice == "pinned"].market_id.tolist() == ["c1", "c2", "c3", "c4"])
+    out, left = U.with_family(df, top, cap=7); assert len(out) == 7 and left == 3   # exactly at the cap: still no family fits
+    out, left = U.with_family(df, top, cap=9); assert set(out[out.slice == "family"].market_id) == {"d2", "d3"} and left == 2   # fits whole or not at all
