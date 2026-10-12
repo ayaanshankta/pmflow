@@ -49,6 +49,12 @@ def test_ladder_same_sign_and_non_leader_ignored():
     # the 3-point drop in the thin sibling is a jump candidate but S is not the leader (fewer fills) -> no second pair
     assert all(p["leader"] == "l" for p in P)
 
+def test_burst_flag():
+    base = [(T0 - 20000 + 450 * k, 0.50) for k in range(40)]
+    for extra, want in (([(T0 - 100, 0.50), (T0, 0.55)], False), ([(T0 - 30, 0.50), (T0, 0.55)], True)):
+        P, _ = L.analyse_family("F3", "exclusive", {"a": mk(base + extra), "b": fam_exclusive()["b"]}, T0 - 3600, T0 + 3600, np.random.RandomState(0))
+        assert len(P) == 1 and P[0]["burst"] is want
+
 def test_stat_and_bar():
     tr = pd.DataFrame({"jump": ["a", "a", "b", "c"], "v": [1.0, 3.0, 2.0, 2.0]})
     s = L.stat(tr, "v"); assert s["n"] == 4 and s["jumps"] == 3 and abs(s["mean"] - 2.0) < 1e-9 and s["lo"] <= 2.0 <= s["hi"]
