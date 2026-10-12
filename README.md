@@ -16,6 +16,17 @@ move came **6–101 s** after the release. Independently re-derived on 5 events 
 prices only, on-chain settlement stamps a few seconds after the match. **Open question: unscheduled news** (posts, filings,
 geopolitics) — that is what the live feeds and the next backtest measure.
 
+## Result 2 (backtest, verified): unscheduled news — big markets reprice in seconds, thin ones barely move
+
+400 Trump Truth Social posts (Oct 2025–Apr 2026) matched by keyword to 1,993 Polymarket markets, against 20 placebo times each.
+Posts coincide with 2.3× the fills of a random moment in the first 5 min (+8.5 [4.3, 13.9] fills, tail-driven), but the typical
+≥ 2-point move takes **~11 min** (682 s vs ~1,200 s at random); only 3.4 % of pairs move within 2 min (1.3–1.6 % at random).
+The liquid on-topic markets (Iran ceasefire, Khamenei, Lebanon, Fed chair) moved in **13–33 s**; the loosely related thin ones
+moved slowly or not at all. Pre-registered "reprices within seconds" bar: **fails** overall, holds for flagship markets.
+Verifier corrections adopted: the "moved more often than placebo" gap was a dead-market placebo artifact; keyword relevance is
+crude (~3 of 10 sampled pairs clearly related). Details: `research/backtest-truth.md`, DECISIONS.
+**Conclusion so far (two verified backtests): no sellable news-to-price lag on Polymarket where there is liquidity.**
+
 ## Live recording (desktop, since 2026-10-10 15:09 CDT)
 
 **No news-reaction number yet.** 375k quote rows recorded over 6 h on 200 markets, but only 3 news events (crypto articles) fell
