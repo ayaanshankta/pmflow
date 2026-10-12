@@ -139,35 +139,41 @@ assert r.dbuf["M1"][-1][1] == 2 and r.dbuf["M1"][-1][2] == 10.                  
 # pending token with a cleared book never reaches _depth_state: force-drain happens before the clear (above); an error in one token is contained
 r.dirty["YES1"] = 1; r.books["YES1"] = None; r.drain(force=True); assert not r.dirty
 
-# heartbeat arithmetic on a fake clock: late = woke - slept - 0.1 s, in ms; median / max once per minute
+# heartbeat on a fake clock + fake sleep: absolute schedule, lateness = wake - due, ms, unclamped
 import asyncio, math, time as _t, record_polymarket as RP
-class FakeClock:
-    def __init__(s, extra): s.t, s.extra = 0.0, iter(extra)
-    def __call__(s): return s.t
-    async def sleep(s, p): s.t += p + next(s.extra)                              # wakes `extra` seconds late
-rec = RP.Recorder({}, conn_file=d + "/hb.txt")
-fc = FakeClock([0.0, 0.01, 0.30, 0.0, 0.05, -0.001])                            # a negative reading (clock quirk) is floored at 0
-async def run6():
-    n = 0
+def hb_run(extras, period=0.1):
+    """Run heartbeat for len(extras) beats; beat i wakes extras[i] s after the requested sleep. Returns (late_ms list, sleeps requested)."""
+    rec = RP.Recorder({}, conn_file=d + "/hb.txt"); st = {"t": 0.0, "n": 0}; sleeps = []
     async def sl(p):
-        nonlocal n; n += 1
-        if n > 6: raise asyncio.CancelledError
-        await fc.sleep(p)
-    try: await RP.heartbeat(rec, _t.time() + 3600, clock=fc, sleep=sl)
-    except asyncio.CancelledError: pass
-asyncio.run(run6())
-assert [round(x, 3) for x in rec.late] == [0, 10, 300, 0, 50, 0], list(rec.late)
-med, mx = RP.late_stats(list(rec.late)); assert (round(med, 3), round(mx, 3)) == (5.0, 300.0)
-assert all(v != v for v in RP.late_stats([]))
-# an error inside the heartbeat never escapes
-async def boom(p): raise RuntimeError("x")
+        if st["n"] >= len(extras): raise asyncio.CancelledError
+        sleeps.append(p); st["t"] += p + extras[st["n"]]; st["n"] += 1
+    async def go():
+        try: await RP.heartbeat(rec, _t.time() + 3600, period=period, clock=lambda: st["t"], sleep=sl)
+        except asyncio.CancelledError: pass
+    asyncio.run(go()); return list(rec.late), sleeps
+# Windows-style timer: wakes alternate 6 ms early / 9 ms late -> median ~0 (not floored), nothing > 250 ms
+late, sl_ = hb_run([-0.006, 0.009] * 300)
+med, p99, mx, n250 = RP.late_stats(late)
+assert len(late) == 600 and min(late) < 0 and abs(med) < 10 and mx < 10 and n250 == 0, (med, mx, n250)
+assert abs(sum(late) / len(late)) < 10 and all(x >= 0 for x in sl_)             # no drift: early/late cancel, never a negative sleep
+# one 400 ms stall: one large value, counted, then the schedule resynchronises with no burst of zero-length catch-up sleeps
+late, sl_ = hb_run([0.0] * 5 + [0.4] + [0.0] * 5)
+assert round(late[5]) == 400 and max(late[:5] + late[6:]) < 1, late
+med, p99, mx, n250 = RP.late_stats(late); assert n250 == 1 and round(mx) == 400 and abs(med) < 1
+assert all(abs(x - 0.1) < 1e-9 for x in sl_[6:]), sl_                           # full-period sleeps after the stall, not 0 s
+# known answers for the helper: 100 samples 1..100 -> median 50.5, p99 = 99, max 100, none over 250; empty -> nan/nan/nan/0
+assert RP.late_stats([float(i) for i in range(1, 101)] + [300.0]) [3] == 1
+assert RP.late_stats([float(i) for i in range(1, 101)])[:3] == (50.5, 99.0, 100.0)
+e = RP.late_stats([]); assert e[0] != e[0] and e[1] != e[1] and e[2] != e[2] and e[3] == 0
+# an error inside the heartbeat never escapes (sleep raises twice, then the test cancels)
+rec = RP.Recorder({}, conn_file=d + "/hb2.txt")
 async def run_boom():
     n = 0
     async def sl(p):
         nonlocal n; n += 1
         if n > 2: raise asyncio.CancelledError
-        await boom(p)
-    try: await RP.heartbeat(rec, _t.time() + 3600, clock=fc, sleep=sl)
+        raise RuntimeError("x")
+    try: await RP.heartbeat(rec, _t.time() + 3600, sleep=sl)
     except asyncio.CancelledError: pass
 asyncio.run(run_boom())
 print("test_record ok")
