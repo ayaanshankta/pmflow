@@ -1,0 +1,48 @@
+{
+ "price_only_move": {
+  "val_auc": 0.8670914157141163,
+  "cfg": {
+   "learning_rate": 0.05,
+   "max_leaf_nodes": 15,
+   "max_iter": 150,
+   "l2_regularization": 1.0,
+   "random_state": 0
+  }
+ },
+ "price_only_dir": {
+  "val_acc": 0.519753086419753,
+  "cfg": {
+   "learning_rate": 0.1,
+   "max_leaf_nodes": 31,
+   "max_iter": 150,
+   "l2_regularization": 1.0,
+   "random_state": 0
+  }
+ },
+ "text_emb_move": {
+  "val_auc": 0.8819550036695304,
+  "cfg": {
+   "learning_rate": 0.1,
+   "max_leaf_nodes": 31,
+   "max_iter": 150,
+   "l2_regularization": 1.0,
+   "random_state": 0
+  }
+ },
+ "text_emb_dir": {
+  "val_acc": 0.4981481481481482,
+  "cfg": {
+   "learning_rate": 0.1,
+   "max_leaf_nodes": 15,
+   "max_iter": 150,
+   "l2_regularization": 1.0,
+   "random_state": 0
+  }
+ },
+ "baseline_move_val_auc": 0.7697427136906525,
+ "baseline_dir_val": {
+  "acc_on_calls": 0.5452322738386308,
+  "n_calls": 409,
+  "n_movers": 1620
+ }
+}
