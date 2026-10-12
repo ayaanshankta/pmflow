@@ -1,4 +1,12 @@
 # Latency replay on fills only (Truth Social, Result-2 pairs)
+
+> **Verifier corrections (2026-10-12, independent re-derivation; numbers reproduce, interpretation changed).**
+> 1. The finding is: **no detectable gross edge** from entering 2-30 s after matched posts; event ≈ placebo. The 1 %-fee losses mostly restate the fee.
+> 2. The "oracle" arm is **not an upper bound**. Its direction is the sign of the first post-t0 trade against the prior mean, and 92 % of Δ=2 s entries are that same trade, so it buys the print it was selected on. Entering on the next trade instead gives +0.001 pts [−0.73, +0.83] at 0 % fee (n=323). Read it as a momentum-with-bounce control.
+> 3. The **lexicon arm is underpowered** (n=32 trades over 20 events; 91 % of liquid pairs had no direction) and supports no conclusion about news direction.
+> 4. The flat 1 %/2 % fees overcharge. With the venue's documented taker fee, rate × p × (1−p) at rate 0.04: oracle Δ=2 s −0.66 pts [−1.21, −0.00]; next-trade variant −0.47 [−1.19, +0.36]; lexicon +0.02.
+> 5. Limits: fills only (no spread or impact), $500 assumed filled at one price, on-chain timestamps (Δ=2 s is inside settlement jitter).
+
 Rules: `research/ml-rules.md` section B (blob a6140e5, committed before running). Code: `replay_truth.py` (+ `test_replay_truth.py`, 8 tests). Raw trades: `results/replay_trades.csv` (regenerated, not committed); summary `results/replay_summary.json`. Same 400 events / 1,993 pairs / placebo generator and seeds as `backtest_truth.py` (Result 2). Bootstrap: 1,000 event-cluster resamples, RandomState(0), trade-weighted mean.
 
 ## Verdict (pre-registered bar: mean PnL at 1 % fee > 0, CI excluding 0, ≥ 100 trades)
