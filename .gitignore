@@ -7,3 +7,7 @@ data/*.log
 data/tob/
 data/conn_id.txt
 data/
+data/trades/
+data/depth/
+data/ticks/
+data/universe_history/

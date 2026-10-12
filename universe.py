@@ -1,6 +1,6 @@
 """Top-N non-sports, active, order-book-enabled Polymarket markets by volume24hr (activity; DECISIONS 2026-10-10) -> data/universe_polymarket.parquet.
 Sports exclusion rule is the SPORTS regex below (tags + event title/slug + question), committed before recording starts."""
-import json, re, datetime as dt
+import json, os, re, datetime as dt
 import pandas as pd, requests
 
 GAMMA = "https://gamma-api.polymarket.com/events"
@@ -43,6 +43,19 @@ def with_short(df, now=None):
     short = df[(end > now) & (end <= now + pd.Timedelta(days=SHORT_DAYS)) & ~df.market_id.isin(top.market_id)].head(SHORT_N).assign(slice="short")
     return pd.concat([top, short], ignore_index=True)
 
+def econ(m):
+    """Tick/reward/fee fields of one Gamma market (None where the market does not carry the field).
+    reward_daily_rate = sum of rewardsDailyRate over clobRewards entries (0 if none)."""
+    f = lambda k: (float(m[k]) if m.get(k) not in (None, "") else None)
+    fs = m.get("feeSchedule") or {}
+    return dict(
+        tick_size=f("orderPriceMinTickSize"), min_order_size=f("orderMinSize"),
+        rewards_min_size=f("rewardsMinSize"), rewards_max_spread=f("rewardsMaxSpread"),
+        reward_daily_rate=float(sum(float(r.get("rewardsDailyRate") or 0) for r in m.get("clobRewards") or [])),
+        fees_enabled=m.get("feesEnabled"), fee_type=m.get("feeType"),
+        fee_rate=fs.get("rate"), fee_exponent=fs.get("exponent"), fee_taker_only=fs.get("takerOnly"),
+        fee_rebate_rate=fs.get("rebateRate"), maker_base_fee=f("makerBaseFee"), taker_base_fee=f("takerBaseFee"))
+
 def sports_tag_ids():
     """Tag ids of every sport/league listed by Gamma /sports."""
     r = requests.get("https://gamma-api.polymarket.com/sports", timeout=30); r.raise_for_status()
@@ -68,7 +81,7 @@ def build(events, sport_ids=frozenset()):
                 market_id=m["conditionId"], question=m.get("question"), token_id_yes=toks[yi], token_id_no=toks[1 - yi],
                 category="|".join(labels), cat1=next((l for l in labels if l not in GENERIC and not l.startswith(("Earn", "Rewards"))), "none"),
                 liquidity=float(m.get("liquidityNum") or m.get("liquidity") or 0),
-                volume24hr=float(m.get("volume24hr") or 0), end_date=m.get("endDate"), fetched_utc=now))
+                volume24hr=float(m.get("volume24hr") or 0), end_date=m.get("endDate"), fetched_utc=now, **econ(m)))
     df = pd.DataFrame(rows).drop_duplicates("market_id").sort_values("volume24hr", ascending=False)
     return df, n_sports
 
@@ -76,7 +89,10 @@ if __name__ == "__main__":
     ev = fetch_events()
     df, n_sports = build(ev, sports_tag_ids())
     top = with_short(df)
-    top.drop(columns="cat1").to_parquet("data/universe_polymarket.parquet", index=False)
+    out = top.drop(columns="cat1")
+    out.to_parquet("data/universe_polymarket.parquet", index=False)
+    os.makedirs("data/universe_history", exist_ok=True)  # reward/fee settings per day; a second run on the same UTC day overwrites that day's copy
+    out.to_parquet(f"data/universe_history/universe_{dt.datetime.now(dt.timezone.utc):%Y-%m-%d}.parquet", index=False)
     print(f"events={len(ev)} eligible_nonsports={len(df)} excluded_sports={n_sports} kept={len(top)}")
     print("slices:", top.slice.value_counts().to_dict())
     print(top.cat1.value_counts().to_string())
