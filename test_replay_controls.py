@@ -21,7 +21,8 @@ def test_wrong_post_boundary_and_no_candidate():
     except ValueError: pass
     else: raise AssertionError("expected ValueError")
 
-def test_control1_prompt_has_no_post_or_slots():
+def test_control1_prompt_has_no_post_or_slots(monkeypatch):
+    for a in ("CACHE", "PROMPT_MD", "SYSTEM", "user_message"): monkeypatch.setattr(C.L, a, getattr(C.L, a))   # restored after the test
     C.set_prompt("c1")
     msg = C.L.user_message("SECRET POST", "will-china-tariff-hit-60")
     assert msg == "Market: will china tariff hit 60\nAnswer (up, down or none):" and "SECRET" not in msg
