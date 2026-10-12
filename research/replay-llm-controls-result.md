@@ -73,9 +73,9 @@ Placebo trades: 2,940 / 2,952 / 2,896 (set i), 5,993 / 5,987 / 5,922 (set ii).
 ## Reading rule on set (i), Δ = 10 s
 - Description 1 (title-only guess recovers part of B2's edge: interval excludes 0 or estimate >= +0.84): **does not apply**. Estimate -0.45, interval [-1.86, +0.68].
 - Description 2 (estimate < +0.84, interval includes 0, AND agreement within 45-55 %): its first two conditions hold; **the agreement condition is not met as written (43.8 %, outside 45-55 %)**. Strictly, neither description is satisfied.
-- My reading, stated as a judgement and not as the rule: the 43.8 % is the independence value for these skewed marginals (above), the 95 % interval for agreement under independence at n = 333 is roughly 33 to 55 % around that value, and the forced guess has no positive edge. I read it as "B2's directions are not explained by the title alone", but the written band was missed and the rule's author should decide whether to accept that.
+- My reading, stated as a judgement and not as the rule: the 43.8 % is the independence value for these skewed marginals (above), the observed value sits at the independence expectation, and the forced guess has no positive edge. I read it as "B2's directions are not explained by the title alone", but the written band was missed and the rule's author should decide whether to accept that.
 
 ## What this changes and what it does not
 - The title-only guess carries no positive edge: the point estimates are negative in both sets, and the 333-pair interval is again about ±1.3 points wide, now with 214-235 trades (comparable to B2's), so it is a real test of an effect of B2's size. An effect of +1.4 or more is excluded; one of +0.7 is not.
-- The model's forced title-only guess is heavily "down" (89 %), so a market-level bias toward "down" exists but did not pay.
+- The model's forced title-only guess is heavily "down" (88 % of all 677), so a market-level bias toward "down" exists but did not pay.
 - Unchanged: the correct post may cue recall of what followed that specific post; only posts after the model's training cutoff remove that.
