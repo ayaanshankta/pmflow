@@ -14,7 +14,7 @@ D = os.path.join(HERE, "data")
 OUT = os.path.join(D, "mapping.parquet")
 CLAUDE = os.path.expanduser("~/.local/bin/claude")
 CAP_USD, MAX_CAND, MAX_OUT = 0.50, 40, 5
-SYSTEM = re.search(r"System prompt \(exact\):\n```\n(.*?)\n```", open(os.path.join(HERE, "LABELS.md")).read(), re.S).group(1)
+SYSTEM = re.search(r"System prompt \(exact\):\n```\n(.*?)\n```", open(os.path.join(HERE, "LABELS.md"), encoding="utf-8").read(), re.S).group(1)
 FED_M = r"\bfed\b.*(rate|interest)"
 # theme -> (event regex, market regex); people surnames are appended below
 LEXICON = {

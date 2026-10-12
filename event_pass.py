@@ -1,6 +1,8 @@
 """Scheduled pass after a release: map window events, measure reactions vs placebo, write data/summary.md.
 Run: /opt/anaconda3/bin/python3 -W ignore event_pass.py   (launchd: com.ayaan.pmflow.pass.plist, 08:50 ET on weekdays)"""
 import subprocess, sys
+try: sys.stdout.reconfigure(encoding="utf-8", errors="replace")   # Task Scheduler stdout is cp1252 on Windows; titles carry emoji
+except Exception: pass
 from datetime import datetime, timezone, timedelta
 import pandas as pd
 from map import RECORD_START
@@ -20,15 +22,15 @@ if len(j):
     e = j[["event_id", "t0_utc", "market_id", "direction", "source"]].assign(venue="polymarket")
     df = run(e, n_placebo=20, seed=0); df.to_parquet("data/reactions.parquet")
     lines += ["", "```", str(summary(df)), "```", "", j[["source", "t0_utc", "title", "direction", "confidence"]].to_string()]
-health = subprocess.run([PY, "-W", "ignore", "gaps.py"], capture_output=True, text=True).stdout.strip().splitlines()
+health = subprocess.run([PY, "-W", "ignore", "gaps.py", "--days", "2"], capture_output=True, text=True, encoding="utf-8", errors="replace").stdout.strip().splitlines()
 lines += ["", "## health (gaps.py)"] + [l for l in health if not l.startswith("/")]
 txt = "\n".join(lines) + "\n"
-open("data/summary.md", "w").write(txt); print(txt)
+open("data/summary.md", "w", encoding="utf-8").write(txt); print(txt)
 # self-report: commit ONLY the results file onto origin/desktop with git plumbing (no branch switch, no working-tree change,
 # always a fast-forward); push. Falls back silently if the remote is unreachable.
 import os, tempfile
 os.makedirs("results", exist_ok=True)
-fn = f"results/pass-{datetime.now(timezone.utc):%Y%m%d-%H%M}Z.md"; open(fn, "w").write(txt)
+fn = f"results/pass-{datetime.now(timezone.utc):%Y%m%d-%H%M}Z.md"; open(fn, "w", encoding="utf-8").write(txt)
 def g(*a, env=None):
     return subprocess.run(["git", *a], capture_output=True, text=True, env={**os.environ, **(env or {})})
 g("fetch", "-q", "origin", "desktop")

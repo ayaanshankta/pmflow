@@ -72,7 +72,7 @@ def parse_atom(text, source, kind):
                          t0_utc=utc(pd.Timestamp(upd)), kind=kind, title=clean(e.findtext(ns + "title")), url=link.get("href")))
     return rows
 
-TS_URL, TS_EVERY, TS_BACKFILL_DAYS = "https://ix.cnn.io/data/truth-social/truth_archive.json", 300, 7
+TS_URL, TS_EVERY, TS_BACKFILL_DAYS = "https://ix.cnn.io/data/truth-social/truth_archive.json", 1800, 7  # every 30 min: the ~20 MB parse every 5 min made the collector the heaviest process on the recording machine
 
 def parse_truthsocial(text, since=None, now=None):
     """CNN archive (refreshed ~5 min, ~20 MB, newest first). created_at has ms precision -> floored to second (source 'truthsocial').
