@@ -5,7 +5,7 @@ Also (2026-10-12, recorder2): data/trades/polymarket/date=*/part-HHMMSS.parquet 
   data/ticks/polymarket.jsonl  tick_size_change events.  tob schema/semantics unchanged.
 Depth is computed in drain() (ticker, 0.1 s), not per message; heartbeat() reports event-loop lateness in the per-minute log line.
 Usage: python record_polymarket.py [minutes]   (default: run forever)"""
-import asyncio, collections, json, logging, os, statistics, sys, time, datetime as dt
+import asyncio, collections, json, logging, math, os, statistics, sys, time, datetime as dt
 import pandas as pd, requests, websockets
 from streams import write_part
 
@@ -180,17 +180,25 @@ def poll_once(rec, tokens):
         for b in r.json(): rec.on_msg({**b, "event_type": "book"}, ns)
 
 def late_stats(samples):
-    """(median, max) of lateness samples in ms; (nan, nan) if none."""
-    return (statistics.median(samples), max(samples)) if samples else (NAN, NAN)
+    """(median, p99, max, count > 250 ms) of lateness samples in ms; (nan, nan, nan, 0) if none."""
+    if not samples: return (NAN, NAN, NAN, 0)
+    s = sorted(samples)
+    return (statistics.median(s), s[math.ceil(0.99 * len(s)) - 1], s[-1], sum(v > 250 for v in s))
 
 async def heartbeat(rec, deadline, period=0.1, clock=time.perf_counter, sleep=asyncio.sleep):
-    """Event-loop lateness: sleep `period`, record how much later than that it woke (ms). Once a minute the flusher logs median/max.
+    """Event-loop lateness against an absolute schedule: beat k is due at t0 + k*period; lateness (ms) = wake - due, unclamped,
+    so early and late wake-ups (15.6 ms timer ticks on Windows) cancel and a real stall is a run of large values.
+    A beat more than 2 periods late (still over 1 period behind after advancing) resynchronises the schedule instead of firing the missed beats in a burst.
     Costs 10 wakeups/s; any error is swallowed (cancellation is not an Exception, so it still stops the task)."""
+    due = None
     while time.time() < deadline:
         try:
-            t0 = clock(); await sleep(period)
-            rec.late.append(max(0.0, (clock() - t0 - period) * 1000))
-        except Exception as e: logging.warning("heartbeat error %r", e); await asyncio.sleep(period)
+            if due is None: due = clock() + period
+            await sleep(max(0.0, due - clock()))
+            now = clock(); rec.late.append((now - due) * 1000)
+            due += period
+            if now - due > period: due = now + period
+        except Exception as e: due = None; logging.warning("heartbeat error %r", e); await asyncio.sleep(period)
 
 async def flusher(rec, deadline):
     while time.time() < deadline:
@@ -198,10 +206,10 @@ async def flusher(rec, deadline):
         t0 = time.time(); r, tr, dp = rec.rows_min, rec.n_trades, rec.n_depth; rec.rows_min = rec.n_trades = rec.n_depth = 0
         snap = rec.take()                                # swapped here, in the loop; only the writing runs in the thread
         await asyncio.to_thread(rec.write, snap)
-        try: med, mx = late_stats(list(rec.late)); rec.late.clear()
-        except Exception: med = mx = NAN
-        logging.info("rows/min=%d conn_id=%d flush_s=%.2f trades=%d depth=%d late_ms_med=%.1f late_ms_max=%.1f",
-                     r, rec.conn_id, time.time() - t0, tr, dp, med, mx)
+        try: med, p99, mx, n250 = late_stats(list(rec.late)); rec.late.clear()
+        except Exception: med = p99 = mx = NAN; n250 = -1
+        logging.info("rows/min=%d conn_id=%d flush_s=%.2f trades=%d depth=%d late_ms_med=%.1f late_ms_max=%.1f late_ms_p99=%.1f late_ms_gt250=%d",
+                     r, rec.conn_id, time.time() - t0, tr, dp, med, mx, p99, n250)
 
 async def ticker(rec, deadline):
     while time.time() < deadline:
