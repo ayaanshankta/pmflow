@@ -103,7 +103,7 @@ tr2 = lambda tok, ns, px: ({**TRADE, "asset_id": tok, "price": px}, ns)
 for m, ns in (tr2("YES1", DAY1, "0.40"), tr2("YES2", DAY1 + 1, "0.41"), tr2("YES1", DAY1 + 2, "0.42")): r.on_msg(m, ns)
 r.flush()
 parts = sorted(glob.glob(d + "/trades/date=*/part-*.parquet")); assert len(parts) == 1
-assert "date=2025-10-09/part-" in parts[0] and pd.read_parquet(parts[0]).market_id.tolist() == ["M1", "M2", "M1"]
+assert "date=2025-10-09/part-" in parts[0].replace(os.sep, "/") and pd.read_parquet(parts[0]).market_id.tolist() == ["M1", "M2", "M1"]
 r.flush(); assert len(glob.glob(d + "/trades/date=*/part-*.parquet")) == 1              # nothing new -> no file
 m0 = os.path.getmtime(parts[0])
 r.on_msg(*tr2("YES1", DAY1 + 86_400 * S, "0.43")); r.on_msg(*tr2("YES1", DAY1 + 86_400 * S + 1, "0.44")); r.flush()

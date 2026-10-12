@@ -48,8 +48,13 @@ class Recorder:
         bids, asks = self.books[tok]
         if bids and asks:
             bp, ap = max(map(float, bids)), min(map(float, asks)); mid = (bp + ap) / 2; e = 1e-9
-            st = tuple(round(sum(sz for px, sz in side.items() if ok(float(px))), 6)
-                       for b in BANDS for side, ok in ((bids, lambda p, b=b: p >= mid - b - e), (asks, lambda p, b=b: p <= mid + b + e)))
+            acc = [0.0] * (2 * len(BANDS))               # one pass per side (was six); runs in the event loop on every book message
+            for j, side, sgn in ((0, bids, -1.0), (1, asks, 1.0)):
+                for px, sz in side.items():
+                    d = sgn * (float(px) - mid)          # distance from mid, positive away from it
+                    for i, b in enumerate(BANDS):
+                        if d <= b + e: acc[2 * i + j] += sz
+            st = tuple(round(v, 6) for v in acc)
         else: st = (NAN,) * 6                            # one-sided/empty book: no mid, no band
         key = lambda t: None if t is None else tuple(None if v != v else v for v in t)
         last = self.dlast.get(tok)
