@@ -23,20 +23,28 @@ def write_part(buf, cols, root, dtypes, now=None, kept=None, fails=None):
     if not rows: return 0
     df = pd.DataFrame(rows, columns=["market_id", *cols]).astype(dtypes).sort_values("recv_ns", kind="stable")  # index = position in rows
     stamp = time.strftime("%H%M%S", time.gmtime(now if now is not None else time.time()))
-    n = 0
-    for day, g in df.groupby(pd.to_datetime(df.recv_ns, unit="ns", utc=True).dt.strftime("%Y-%m-%d")):
-        d = f"{root}/date={day}"; p = f"{d}/part-{stamp}.parquet"
-        try:
-            os.makedirs(d, exist_ok=True); k = 0
-            while os.path.exists(p): k += 1; p = f"{d}/part-{stamp}-{k}.parquet"   # two flushes in one second
-            g.to_parquet(p + ".tmp", index=False); replace_retry(p + ".tmp", p)
-            n += len(g)
-        except Exception as e:
-            if kept is None: raise
-            try: os.remove(p + ".tmp")
-            except OSError: pass
-            fails.append(p); logging.error("flush FAILED %s: %r -- %d rows kept for retry", p, e, len(g))
-            for i in g.index: kept.setdefault(rows[i][0], []).append(rows[i][1:])
+    n, handled = 0, set()                                # handled: days written or kept (a later raise must not re-keep them)
+    try:
+        for day, g in df.groupby(pd.to_datetime(df.recv_ns, unit="ns", utc=True).dt.strftime("%Y-%m-%d")):
+            d = f"{root}/date={day}"; p = f"{d}/part-{stamp}.parquet"
+            try:
+                os.makedirs(d, exist_ok=True); k = 0
+                while os.path.exists(p): k += 1; p = f"{d}/part-{stamp}-{k}.parquet"   # two flushes in one second
+                g.to_parquet(p + ".tmp", index=False); replace_retry(p + ".tmp", p)
+                n += len(g); handled.add(day)
+            except Exception as e:
+                if kept is None: raise
+                try: os.remove(p + ".tmp")
+                except OSError: pass
+                fails.append(p); logging.error("flush FAILED %s: %r -- %d rows kept for retry", p, e, len(g))
+                for i in g.index: kept.setdefault(rows[i][0], []).append(rows[i][1:])
+                handled.add(day)
+    except Exception as e:
+        if kept is None: raise
+        days = pd.to_datetime(df.recv_ns, unit="ns", utc=True).dt.strftime("%Y-%m-%d")   # may itself raise -> caller keeps everything (nothing written yet)
+        left = [i for i in df.index if days[i] not in handled]
+        fails.append(root); logging.error("flush FAILED %s: %r -- %d rows kept for retry", root, e, len(left))
+        for i in left: kept.setdefault(rows[i][0], []).append(rows[i][1:])
     return n
 
 def read_stream(root, market_id, lo_ns, hi_ns):

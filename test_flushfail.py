@@ -66,6 +66,41 @@ def flaky(src, dst, *a, **k):
     return REAL(src, dst)
 os.replace = flaky; assert r.flush() == 1 and r.held_n == 0 and n["k"] == 3; os.replace = fake_replace
 
+# ---- an exception from inside _write after some markets were written: every row exactly once, in order ----
+real_w = RP.Recorder._write
+def run_case(patch):
+    d, r = mk(); r.new_conn()
+    for i, t in enumerate(("Y1", "Y2", "Y3")): r.on_msg(book(t), DAY1 + i)
+    r._write = patch; r.flush(); assert 0 <= r.held_n <= 2
+    del r._write
+    for t_, k in (("Y1", 10), ("Y2", 11), ("Y3", 12)): bid(t_, "0.41", DAY1 + k, r)
+    r.flush(); r.flush(); assert r.held_n == 0
+    for m, k in (("M1", 0), ("M2", 1), ("M3", 2)): assert rd(d, m).recv_ns.tolist() == [DAY1 + k, DAY1 + 10 + k], (m, rd(d, m))
+def partial(buf, cols, out, dt_, kept=None, fails=None, done=None):       # M1 written, then the machinery itself raises
+    real_w({"M1": buf["M1"]}, cols, out, dt_, kept, fails, done); raise RuntimeError("late boom")
+run_case(partial)
+calls = {"n": 0}
+real_gb = pd.DataFrame.groupby
+def gb(self, *a, **k):                                                   # raises outside the per-file try, on the 2nd market
+    calls["n"] += 1
+    if calls["n"] == 2: raise RuntimeError("grouping boom")
+    return real_gb(self, *a, **k)
+pd.DataFrame.groupby = gb
+try: run_case(real_w)
+finally: pd.DataFrame.groupby = real_gb
+# same for the part files: raise after one day was written
+d, r = mk(); r.new_conn(); trade("Y1", "0.50", DAY1, r); trade("Y1", "0.51", DAY1 + 86_400 * S, r)
+calls["n"] = 0; real_to_pq = pd.DataFrame.to_parquet
+def tp(self, path, *a, **k):
+    calls["n"] += 1
+    if calls["n"] == 2: raise RuntimeError("disk boom")
+    return real_to_pq(self, path, *a, **k)
+pd.DataFrame.to_parquet = tp
+try: r.flush()
+finally: pd.DataFrame.to_parquet = real_to_pq
+assert r.held_n == 1; r.flush()
+assert read_stream(d + "/trades", "M1", DAY1, DAY1 + 2 * 86_400 * S).price.tolist() == [.50, .51]
+
 # ---- trades part file ----
 d, r = mk(); r.new_conn(); trade("Y1", "0.50", DAY1 + 1, r); trade("Y2", "0.51", DAY1 + 2, r)
 BAD.add("/trades/"); r.flush()

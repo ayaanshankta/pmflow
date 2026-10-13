@@ -133,34 +133,39 @@ class Recorder:
                 self.dirty[t] = recv_ns                  # depth is computed later, in drain(); keep the latest change time
 
     @staticmethod
-    def _write(buf, cols, out, dtypes, kept=None, fails=None):
+    def _write(buf, cols, out, dtypes, kept=None, fails=None, done=None):
         """Per market/day: merge buffered rows into the day's parquet (atomic rename). Returns rows written.
-        kept (dict) given: a failing market/day file does not raise; its rows go into kept (market -> [rows]) for a later call,
-        the stray .tmp is removed, one error line is logged and the file name is appended to fails."""
+        kept (dict) given: nothing raises; a market/day whose file cannot be written (or whose frame cannot be built) has its rows
+        put into kept (market -> [rows]) for a later call, the stray .tmp is removed, one error line is logged, the file name is
+        appended to fails. Every row ends up either written or in kept, never both: done collects markets fully handled."""
         n = 0
         for mkt, rows in buf.items():
             if not rows: continue
-            try: df = pd.DataFrame(rows, columns=cols); days = pd.to_datetime(df.recv_ns, unit="ns", utc=True).dt.strftime("%Y-%m-%d")
+            handled, dl = set(), None                    # days written or kept; per-row day strings
+            try:
+                df = pd.DataFrame(rows, columns=cols); days = pd.to_datetime(df.recv_ns, unit="ns", utc=True).dt.strftime("%Y-%m-%d"); dl = days.tolist()
+                for day, g in df.groupby(days):
+                    d = f"{out}/{mkt}"; p = f"{d}/date={day}.parquet"
+                    try:
+                        os.makedirs(d, exist_ok=True)
+                        new = len(g)
+                        if os.path.exists(p): g = pd.concat([pd.read_parquet(p), g], ignore_index=True)
+                        g.astype(dtypes).to_parquet(p + ".tmp", index=False)
+                        replace_retry(p + ".tmp", p, tries=4 if kept is None or len(fails) < 5 else 1)   # after 5 failed files stop waiting: one try each
+                        n += new; handled.add(day)
+                    except Exception as e:
+                        if kept is None: raise
+                        try: os.remove(p + ".tmp")
+                        except OSError: pass
+                        idx = df.index[days == day]
+                        fails.append(p); logging.error("flush FAILED %s: %r -- %d rows kept for retry", p, e, len(idx))
+                        kept.setdefault(mkt, []).extend(rows[i] for i in idx); handled.add(day)
             except Exception as e:
                 if kept is None: raise
-                fails.append(f"{out}/{mkt}"); logging.error("flush FAILED %s/%s: %r -- %d rows kept for retry", out, mkt, e, len(rows))
-                kept.setdefault(mkt, []).extend(rows); continue
-            for day, g in df.groupby(days):
-                d = f"{out}/{mkt}"; p = f"{d}/date={day}.parquet"
-                try:
-                    os.makedirs(d, exist_ok=True)
-                    new = len(g)
-                    if os.path.exists(p): g = pd.concat([pd.read_parquet(p), g], ignore_index=True)
-                    g.astype(dtypes).to_parquet(p + ".tmp", index=False)
-                    replace_retry(p + ".tmp", p, tries=4 if kept is None or len(fails) < 5 else 1)   # after 5 failed files stop waiting: one try each
-                    n += new
-                except Exception as e:
-                    if kept is None: raise
-                    try: os.remove(p + ".tmp")
-                    except OSError: pass
-                    idx = df.index[days == day]
-                    fails.append(p); logging.error("flush FAILED %s: %r -- %d rows kept for retry", p, e, len(idx))
-                    kept.setdefault(mkt, []).extend(rows[i] for i in idx)
+                left = [rw for i, rw in enumerate(rows) if dl is None or dl[i] not in handled]
+                fails.append(f"{out}/{mkt}"); logging.error("flush FAILED %s/%s: %r -- %d rows kept for retry", out, mkt, e, len(left))
+                kept.setdefault(mkt, []).extend(left)
+            if done is not None: done.add(mkt)
         return n
 
     def take(self):
@@ -184,10 +189,13 @@ class Recorder:
         with self.wlock:
             self.held = tuple(self._join(h, b) for h, b in zip(self.held, snap))   # set first: whatever happens below, no row is dropped
             buf, tb, db = self.held
-            kept, fails, n = ({}, {}, {}), [], 0
+            kept, fails, n, done = ({}, {}, {}), [], 0, set()
             i64 = {"recv_ns": "int64", "conn_id": "int64"}
-            try: n = self._write(buf, COLS, self.out, i64, kept[0], fails)
-            except Exception as e: logging.error("tob flush error %r", e); kept = ({m: list(r) for m, r in buf.items()}, kept[1], kept[2])
+            try: n = self._write(buf, COLS, self.out, i64, kept[0], fails, done)
+            except Exception as e:                       # _write is built not to get here; if it does, keep only markets it had not finished
+                logging.error("tob flush error %r", e)
+                for m, rs in buf.items():
+                    if m not in done and rs: kept[0].setdefault(m, []).extend(rs)
             for k, b, cols, root, dt_ in ((1, tb, TCOLS, self.trades, {**i64, "exch_ts_ms": "Int64"}),
                                           (2, db, DCOLS, self.depth, {**i64, "state_ns": "int64"})):
                 try: write_part(b, cols, root, dt_, kept=kept[k], fails=fails)
