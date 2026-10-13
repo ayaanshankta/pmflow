@@ -10,6 +10,7 @@ from email.utils import parsedate_to_datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 import pandas as pd, requests
+from streams import replace_retry
 
 UA = {"User-Agent": "pmflow-research/0.1 (student project; ayaanshankta08@gmail.com)"}
 OUT = Path(__file__).parent / "data" / "events.parquet"
@@ -131,11 +132,20 @@ def _enc(b):  # honour the XML declaration (SEC is ISO-8859-1), else utf-8
     m = re.match(rb'\s*<\?xml[^>]*encoding=["\']([\w-]+)', b)
     return m[1].decode() if m else "utf-8"
 
+_held = {}  # out -> rows whose write failed (first_seen_utc already set); joined to the next merge() for that file
+
 def merge(new_rows, out=OUT, now=None):
-    """Append rows whose event_id is unseen; existing rows (incl. first_seen_utc) are never changed. Returns n added."""
-    df = pd.DataFrame(new_rows, columns=COLS[:2] + ["t0_utc", "first_seen_utc", "title", "url", "kind"])
+    """Append rows whose event_id is unseen; existing rows (incl. first_seen_utc) are never changed. Returns n added.
+    Never raises: if the file cannot be written (Windows: another program has it open) the rows are kept and retried on the next call."""
+    df = pd.DataFrame(_held.pop(out, []) + list(new_rows), columns=COLS[:2] + ["t0_utc", "first_seen_utc", "title", "url", "kind"])
     if df.empty: return 0
-    with _lock(out): return _merge(df, out, now)
+    df["first_seen_utc"] = df.first_seen_utc.fillna(utc(now or datetime.now(timezone.utc)))
+    try:
+        with _lock(out): return _merge(df, out, now)
+    except Exception as e:
+        _held[out] = df.to_dict("records")
+        print(f"{datetime.now(timezone.utc):%F %T} events write ERROR {out}: {e!r:.200} -- {len(df)} rows kept for the next pass", file=sys.stderr, flush=True)
+        return 0
 
 @contextlib.contextmanager
 def _lock(out):  # lockfile (no fcntl: desktop is Windows); collect.py and bluesky.py both write events.parquet
@@ -156,7 +166,9 @@ def _merge(df, out, now):
     df = df[COLS]
     allr = pd.concat([old, df], ignore_index=True) if len(old) else df
     for c in ("t0_utc", "first_seen_utc"): allr[c] = pd.to_datetime(allr[c], utc=True).astype("datetime64[s, UTC]")
-    tmp = out.with_suffix(".tmp"); allr.to_parquet(tmp, index=False); tmp.replace(out)
+    tmp = out.with_suffix(".tmp")
+    try: allr.to_parquet(tmp, index=False); replace_retry(tmp, out)
+    except Exception: tmp.unlink(missing_ok=True); raise
     return len(df)
 
 def poll(sources=SOURCES, last_sched=None):

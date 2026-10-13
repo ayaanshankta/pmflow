@@ -5,9 +5,9 @@ Also (2026-10-12, recorder2): data/trades/polymarket/date=*/part-HHMMSS.parquet 
   data/ticks/polymarket.jsonl  tick_size_change events.  tob schema/semantics unchanged.
 Depth is computed in drain() (ticker, 0.1 s), not per message; heartbeat() reports event-loop lateness in the per-minute log line.
 Usage: python record_polymarket.py [minutes]   (default: run forever)"""
-import asyncio, collections, json, logging, math, os, statistics, sys, time, datetime as dt
+import asyncio, collections, json, logging, math, os, signal, statistics, sys, threading, time, datetime as dt
 import pandas as pd, requests, websockets
-from streams import write_part
+from streams import write_part, replace_retry
 
 WS = "wss://ws-subscriptions-clob.polymarket.com/ws/market"
 BOOKS = "https://clob.polymarket.com/books"
@@ -18,6 +18,10 @@ TCOLS = ["recv_ns", "conn_id", "price", "size", "side", "exch_ts_ms", "fee_rate_
 BANDS = (0.01, 0.02, 0.05)  # cents from mid
 DCOLS = ["recv_ns", "conn_id"] + [f"{s}_{int(b * 100)}c" for b in BANDS for s in ("bid", "ask")] + ["state_ns"]  # state_ns: when the state arrived (<= recv_ns)
 DEPTH_MIN_NS = 10**9        # at most one depth row per market per second
+WS_QUEUE = (4096, 1024)     # websockets max_queue (high, low) in frames; library default is 16. See ws_session.
+WS_IDLE_S = 60              # the server answers our PING every 10 s; silence this long = dead connection -> reconnect
+STOP_FILE = "data/STOP"     # create this file to make the recorder flush and exit (the only way to stop it cleanly from PowerShell)
+LIVE_AGE_S = 180            # no successful flush for this long -> error line every minute
 NAN = float("nan")
 
 class Recorder:
@@ -32,6 +36,10 @@ class Recorder:
         self.books = {t: ({}, {}) for t in tok2mkt}      # token -> (bids{px:sz}, asks{px:sz})
         self.last, self.buf = {}, {}                     # token -> last tob tuple; market -> [rows]
         self.rows_min = 0
+        self.held = ({}, {}, {})                         # tob / trades / depth rows whose file write failed: market -> [rows]; only touched under wlock
+        self.held_n = self.fail_n = 0                    # rows held back / files that failed in the latest flush
+        self.wlock = threading.Lock()                    # one write at a time (the flush thread may still run when a final flush starts)
+        self.last_ok = time.time()                       # end of the last flush that wrote everything
         try: self.conn_id = int(open(conn_file).read())
         except Exception: self.conn_id = 0
 
@@ -39,8 +47,10 @@ class Recorder:
         """Call on every (re)connect; books are rebuilt from the fresh snapshot."""
         self.drain(force=True)                           # pending depth belongs to the old conn_id and the old (not yet cleared) book
         self.conn_id += 1
-        os.makedirs(os.path.dirname(self.conn_file) or ".", exist_ok=True)
-        open(self.conn_file, "w").write(str(self.conn_id))
+        try:
+            os.makedirs(os.path.dirname(self.conn_file) or ".", exist_ok=True)
+            with open(self.conn_file, "w") as f: f.write(str(self.conn_id))
+        except Exception as e: logging.error("conn_id file write failed %r (kept in memory)", e)   # must not stop a reconnect
         self.books = {t: ({}, {}) for t in self.t2m}; self.last = {}
         self.dlast, self.dirty, self.dcalc = {}, {}, {}
         return self.conn_id
@@ -123,17 +133,34 @@ class Recorder:
                 self.dirty[t] = recv_ns                  # depth is computed later, in drain(); keep the latest change time
 
     @staticmethod
-    def _write(buf, cols, out, dtypes):
-        """Per market/day: merge buffered rows into the day's parquet (atomic rename). Returns rows written."""
+    def _write(buf, cols, out, dtypes, kept=None, fails=None):
+        """Per market/day: merge buffered rows into the day's parquet (atomic rename). Returns rows written.
+        kept (dict) given: a failing market/day file does not raise; its rows go into kept (market -> [rows]) for a later call,
+        the stray .tmp is removed, one error line is logged and the file name is appended to fails."""
         n = 0
         for mkt, rows in buf.items():
-            df = pd.DataFrame(rows, columns=cols); n += len(df)
-            for day, g in df.groupby(pd.to_datetime(df.recv_ns, unit="ns", utc=True).dt.strftime("%Y-%m-%d")):
-                d = f"{out}/{mkt}"; os.makedirs(d, exist_ok=True)
-                p = f"{d}/date={day}.parquet"
-                if os.path.exists(p): g = pd.concat([pd.read_parquet(p), g], ignore_index=True)
-                g.astype(dtypes).to_parquet(p + ".tmp", index=False)
-                os.replace(p + ".tmp", p)
+            if not rows: continue
+            try: df = pd.DataFrame(rows, columns=cols); days = pd.to_datetime(df.recv_ns, unit="ns", utc=True).dt.strftime("%Y-%m-%d")
+            except Exception as e:
+                if kept is None: raise
+                fails.append(f"{out}/{mkt}"); logging.error("flush FAILED %s/%s: %r -- %d rows kept for retry", out, mkt, e, len(rows))
+                kept.setdefault(mkt, []).extend(rows); continue
+            for day, g in df.groupby(days):
+                d = f"{out}/{mkt}"; p = f"{d}/date={day}.parquet"
+                try:
+                    os.makedirs(d, exist_ok=True)
+                    new = len(g)
+                    if os.path.exists(p): g = pd.concat([pd.read_parquet(p), g], ignore_index=True)
+                    g.astype(dtypes).to_parquet(p + ".tmp", index=False)
+                    replace_retry(p + ".tmp", p, tries=4 if kept is None or len(fails) < 5 else 1)   # after 5 failed files stop waiting: one try each
+                    n += new
+                except Exception as e:
+                    if kept is None: raise
+                    try: os.remove(p + ".tmp")
+                    except OSError: pass
+                    idx = df.index[days == day]
+                    fails.append(p); logging.error("flush FAILED %s: %r -- %d rows kept for retry", p, e, len(idx))
+                    kept.setdefault(mkt, []).extend(rows[i] for i in idx)
         return n
 
     def take(self):
@@ -142,22 +169,45 @@ class Recorder:
         snap = (self.buf, self.tbuf, self.dbuf); self.buf, self.tbuf, self.dbuf = {}, {}, {}
         return snap
 
+    @staticmethod
+    def _join(held, new):
+        """held rows (older) + new rows per market, in receive-time order. Builds new containers; never touches `new`'s lists."""
+        if not held: return new
+        out = dict(new)
+        for m, rs in held.items(): out[m] = sorted(rs + new.get(m, []), key=lambda r: r[0])  # stable; row[0] is recv_ns
+        return out
+
     def write(self, snap):
-        """Top-of-book first (rewrite-per-day files, unchanged), then each side stream as an append-only part file
-        in its own try/except. Returns tob rows written; trades/depth counts are in self.n_trades/n_depth."""
-        buf, tb, db = snap
-        i64 = {"recv_ns": "int64", "conn_id": "int64"}
-        n = self._write(buf, COLS, self.out, i64)
-        for b, cols, root, dt_ in ((tb, TCOLS, self.trades, {**i64, "exch_ts_ms": "Int64"}),
-                                   (db, DCOLS, self.depth, {**i64, "state_ns": "int64"})):
-            try: write_part(b, cols, root, dt_)
-            except Exception as e: logging.warning("side-stream flush failed (%s): %r", root, e)
-        return n
+        """Top-of-book first (rewrite-per-day files, unchanged), then each side stream as an append-only part file.
+        Never raises. A file that cannot be written keeps its rows in self.held; they are joined (in receive-time order) to the
+        next call's rows. Returns tob rows written; trades/depth counts are in self.n_trades/n_depth."""
+        with self.wlock:
+            self.held = tuple(self._join(h, b) for h, b in zip(self.held, snap))   # set first: whatever happens below, no row is dropped
+            buf, tb, db = self.held
+            kept, fails, n = ({}, {}, {}), [], 0
+            i64 = {"recv_ns": "int64", "conn_id": "int64"}
+            try: n = self._write(buf, COLS, self.out, i64, kept[0], fails)
+            except Exception as e: logging.error("tob flush error %r", e); kept = ({m: list(r) for m, r in buf.items()}, kept[1], kept[2])
+            for k, b, cols, root, dt_ in ((1, tb, TCOLS, self.trades, {**i64, "exch_ts_ms": "Int64"}),
+                                          (2, db, DCOLS, self.depth, {**i64, "state_ns": "int64"})):
+                try: write_part(b, cols, root, dt_, kept=kept[k], fails=fails)
+                except Exception as e:                   # raised before anything was written (frame building): keep it all
+                    logging.error("side-stream flush failed (%s): %r -- rows kept for retry", root, e)
+                    fails.append(root); kept[k].clear(); kept[k].update({m: list(r) for m, r in b.items()})
+            self.held = kept
+            self.held_n, self.fail_n = sum(len(r) for h in kept for r in h.values()), len(fails)
+            if not fails: self.last_ok = time.time()
+            return n
 
     def flush(self): return self.write(self.take())
 
 async def ws_session(rec, tokens, deadline):
-    async with websockets.connect(WS, ping_interval=None, max_size=None) as ws:
+    # max_queue = (high, low) in FRAMES. Default 16 means the client stops reading the socket once 16 messages are waiting for the
+    # handler; on connect the server pushes one book per token at once, our send buffer on their side fills -> close 1013 "slow consumer".
+    # 4096 > any snapshot (<= ~1 book per token, caps are a few hundred) plus the live changes that arrive during it, and bounds memory
+    # (4096 * a few KB per book = tens of MB, never unbounded). Other params that matter (17.2 source): ping_interval=None (no client-side
+    # keepalive that a stalled loop could fail), max_size=None (no 1 MiB limit on a big book), write_limit only affects what we send.
+    async with websockets.connect(WS, ping_interval=None, max_size=None, max_queue=WS_QUEUE) as ws:
         cid = rec.new_conn()
         await ws.send(json.dumps({"assets_ids": tokens, "type": "market", "custom_feature_enabled": True}))
         logging.info("ws connected conn_id=%d tokens=%d", cid, len(tokens)); rec.connected_ok = True  # a session that connected resets the backoff
@@ -165,11 +215,16 @@ async def ws_session(rec, tokens, deadline):
             while True: await asyncio.sleep(10); await ws.send("PING")
         pt = asyncio.create_task(pinger())
         try:
-            async for raw in ws:
+            while True:
+                try: raw = await asyncio.wait_for(ws.recv(), WS_IDLE_S)   # a half-open socket would otherwise block here forever, silently
+                except websockets.ConnectionClosedOK: return
                 ns = time.time_ns()
                 if raw == "PONG": continue
-                rec.on_msg(json.loads(raw), ns)
+                try: rec.on_msg(json.loads(raw), ns)
+                except Exception as e: logging.warning("bad message dropped %r: %.200r", e, raw)   # one odd message must not cost a reconnect
                 if time.time() > deadline: return
+        except websockets.ConnectionClosed as e:
+            logging.warning("ws closed rcvd=%s sent=%s", getattr(e.rcvd, "code", None), getattr(e.sent, "code", None)); raise
         finally: pt.cancel()
 
 def poll_once(rec, tokens):
@@ -201,15 +256,37 @@ async def heartbeat(rec, deadline, period=0.1, clock=time.perf_counter, sleep=as
         except Exception as e: due = None; logging.warning("heartbeat error %r", e); await asyncio.sleep(period)
 
 async def flusher(rec, deadline):
+    """Once a minute: swap the buffers out, write them in a thread, log. Nothing can end this task except cancellation."""
     while time.time() < deadline:
         await asyncio.sleep(FLUSH_S)
-        t0 = time.time(); r, tr, dp = rec.rows_min, rec.n_trades, rec.n_depth; rec.rows_min = rec.n_trades = rec.n_depth = 0
-        snap = rec.take()                                # swapped here, in the loop; only the writing runs in the thread
-        await asyncio.to_thread(rec.write, snap)
-        try: med, p99, mx, n250 = late_stats(list(rec.late)); rec.late.clear()
-        except Exception: med = p99 = mx = NAN; n250 = -1
-        logging.info("rows/min=%d conn_id=%d flush_s=%.2f trades=%d depth=%d late_ms_med=%.1f late_ms_max=%.1f late_ms_p99=%.1f late_ms_gt250=%d",
-                     r, rec.conn_id, time.time() - t0, tr, dp, med, mx, p99, n250)
+        try:
+            t0 = time.time(); r, tr, dp = rec.rows_min, rec.n_trades, rec.n_depth; rec.rows_min = rec.n_trades = rec.n_depth = 0
+            snap = rec.take()                            # swapped here, in the loop; only the writing runs in the thread
+            await asyncio.to_thread(rec.write, snap)
+            try: med, p99, mx, n250 = late_stats(list(rec.late)); rec.late.clear()
+            except Exception: med = p99 = mx = NAN; n250 = -1
+            logging.info("rows/min=%d conn_id=%d flush_s=%.2f trades=%d depth=%d late_ms_med=%.1f late_ms_max=%.1f late_ms_p99=%.1f late_ms_gt250=%d held=%d failed_files=%d",
+                         r, rec.conn_id, time.time() - t0, tr, dp, med, mx, p99, n250, rec.held_n, rec.fail_n)
+        except Exception as e: logging.error("flusher iteration error %r (loop continues)", e)
+
+def rows_in_memory(rec):
+    return sum(len(v) for b in (rec.buf, rec.tbuf, rec.dbuf) for v in list(b.values())) + rec.held_n
+
+async def watchdog(rec, deadline, main_task, every=5):
+    """Independent of flusher(): (1) error line each minute once no flush has fully succeeded for LIVE_AGE_S, with the age and
+    the rows held in memory; (2) data/STOP file -> end main() through cancellation, which runs the final flush."""
+    next_log = 0
+    while time.time() < deadline:
+        await asyncio.sleep(every)
+        try:
+            if os.path.exists(STOP_FILE):
+                logging.warning("stop file found -> clean stop"); os.remove(STOP_FILE); main_task.cancel(); return
+            age = time.time() - rec.last_ok
+            if age >= LIVE_AGE_S and time.time() >= next_log:
+                next_log = time.time() + 60
+                logging.error("NOT RECORDING: no successful flush for %ds, rows held in memory=%d (held for retry=%d, failed files=%d)",
+                              age, rows_in_memory(rec), rec.held_n, rec.fail_n)
+        except Exception as e: logging.error("watchdog error %r", e)
 
 async def ticker(rec, deadline):
     while time.time() < deadline:
@@ -222,7 +299,21 @@ async def main(minutes=None):
     tok2mkt = dict(zip(u.token_id_yes, u.market_id)); tokens = list(tok2mkt)
     rec = Recorder(tok2mkt)
     deadline = time.time() + minutes * 60 if minutes else float("inf")
-    ft = asyncio.create_task(flusher(rec, deadline)); tt = asyncio.create_task(ticker(rec, deadline)); hb = asyncio.create_task(heartbeat(rec, deadline))
+    try: os.remove(STOP_FILE)                            # a stale stop file must not stop the next run
+    except OSError: pass
+    tasks = [asyncio.create_task(c) for c in (flusher(rec, deadline), ticker(rec, deadline), heartbeat(rec, deadline),
+                                              watchdog(rec, deadline, asyncio.current_task()))]
+    try:
+        await run_sessions(rec, tokens, deadline)
+    finally:                                             # normal end, cancellation (Ctrl-C, stop file) or error: always try the last flush
+        for t in tasks: t.cancel()
+        try:
+            rec.drain(force=True); rec.flush()
+            logging.info("final flush done, held=%d failed_files=%d", rec.held_n, rec.fail_n)
+            if rec.held_n: logging.error("EXIT WITH %d ROWS NOT WRITTEN (files unwritable)", rec.held_n)
+        except BaseException as e: logging.error("final flush error %r", e)
+
+async def run_sessions(rec, tokens, deadline):
     fails, backoff = 0, 1
     while time.time() < deadline:
         try:
@@ -240,10 +331,12 @@ async def main(minutes=None):
                     except Exception as e2: logging.warning("poll error %r", e2)
                     await asyncio.sleep(max(0, 1 - (time.time() - t0)))
             await asyncio.sleep(backoff); backoff = min(backoff * 2, 60)
-    ft.cancel(); tt.cancel(); hb.cancel(); rec.drain(force=True); rec.flush()
 
 if __name__ == "__main__":
     os.makedirs("data", exist_ok=True)
     logging.basicConfig(filename="data/recorder.log", level=logging.INFO, format="%(asctime)s %(message)s")
     logging.getLogger().addHandler(logging.StreamHandler())
-    asyncio.run(main(float(sys.argv[1]) if len(sys.argv) > 1 else None))
+    if hasattr(signal, "SIGBREAK"):                      # Windows only: Ctrl-Break (and a console close, if the CRT maps it) -> same path as Ctrl-C
+        signal.signal(signal.SIGBREAK, signal.default_int_handler)
+    try: asyncio.run(main(float(sys.argv[1]) if len(sys.argv) > 1 else None))
+    except KeyboardInterrupt: logging.info("stopped by KeyboardInterrupt")
