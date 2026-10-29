@@ -1,0 +1,46 @@
+props 23,940; priced main lines 9,785; matched to box scores 8,228 (84.1%); unmatched = did not play (over rate 0.005) or name not in box (11)
+
+==== TEST (run once): 3,679 pairs, 231 players; next game a DNP in 342 (counted: an over bet loses, an under bet wins) ====
+(a) line change after game n, by bucket (normal-minutes games):
+                 mean  count
+stat     bucket             
+assists  bad    -0.23    121
+         great   0.26    221
+         middle -0.05    665
+points   bad    -1.38    180
+         great   0.94    340
+         middle -0.25   1152
+rebounds bad    -0.53    131
+         great   0.33    211
+         middle -0.25    605
+(b) premium = P(over) − outcome in game n+1 (>0 = over too dear):
+   bad    n=  432  premium +0.0463  95% CI [+0.0048, +0.0867]  mean price 0.461  over rate 0.414
+   middle n= 2422  premium +0.0241  95% CI [+0.0040, +0.0447]  mean price 0.480  over rate 0.456
+   great  n=  772  premium +0.0159  95% CI [-0.0188, +0.0515]  mean price 0.535  over rate 0.519
+   PRIMARY premium(great) − premium(bad) = -0.0304  95% CI [-0.0670, +0.0065]
+(c) real form: corr(z_n, z_n+1 actual vs line) = +0.099 (n=3,296); over rate after bad 0.480 vs after great 0.556
+   short-minutes stratum (not traded): n=53, premium -0.0585
+S7 fade-the-last-game:
+ stats   k  slip  bets  mean_ret   ci_lo   ci_hi  win_rate
+   all 0.5  0.01  2320   -0.0811 -0.1406 -0.0171    0.4526
+   all 0.5  0.02  2299   -0.1072 -0.1621 -0.0506    0.4476
+   all 1.0  0.01  1191   -0.0421 -0.1337  0.0691    0.4509
+   all 1.0  0.02  1175   -0.0756 -0.1613  0.0238    0.4434
+   all 1.5  0.01   547   -0.0366 -0.2132  0.1786    0.4241
+   all 1.5  0.02   537   -0.0805 -0.2272  0.1141    0.4134
+points 0.5  0.01  1034   -0.0614 -0.1470  0.0329    0.4526
+points 0.5  0.02  1025   -0.0902 -0.1652 -0.0148    0.4478
+points 1.0  0.01   515   -0.0119 -0.1481  0.1518    0.4505
+points 1.0  0.02   508   -0.0510 -0.1706  0.0858    0.4429
+points 1.5  0.01   233   -0.0391 -0.2700  0.2576    0.4163
+points 1.5  0.02   229   -0.0876 -0.2887  0.1716    0.4061
+S7b/S7c buy the under:
+                        rule  stats  slip  bets  mean_ret   ci_lo  ci_hi  win_rate
+       S7b under, every line    all  0.01  3534    0.0310 -0.0118 0.0804    0.5235
+       S7b under, every line    all  0.02  3478    0.0052 -0.0365 0.0520    0.5158
+       S7b under, every line points  0.01  1634    0.0696  0.0107 0.1319    0.5251
+       S7b under, every line points  0.02  1613    0.0405 -0.0150 0.0985    0.5189
+S7c under after great (z>=1)    all  0.01   759    0.0552 -0.0841 0.2309    0.4717
+S7c under after great (z>=1)    all  0.02   743    0.0133 -0.1142 0.1579    0.4603
+S7c under after great (z>=1) points  0.01   335    0.1086 -0.0909 0.3386    0.4687
+S7c under after great (z>=1) points  0.02   328    0.0583 -0.1293 0.2621    0.4573
