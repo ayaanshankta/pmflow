@@ -224,3 +224,15 @@ Wallet tests (new pass `behav_wallets.py` over both layers; maker and taker addr
   - S18: after a surprise ≥ +0.5, buy NO on k+1; after ≤ −0.5, buy YES on k+1. Pass bar as above.
   - Excludes up-or-down and sports moneylines (B6 covered those).
   - Contamination: none seen (no series-level statistic has been computed).
+
+## B19 (2026-10-29, written before any computation; from Ayaan's break-even idea)
+- **Aggregate caution after losses.** Weekly loss L_w = sum of realized hold-to-resolution losses (PnL < 0) of the
+  sample wallets (int(addr,16) % 50 == 0) on positions resolving in the 7 days before snapshot Monday w, excluding the
+  top 1% of sample wallets by $ (likely market makers). Weeks split at the DEV median of L_w (scaled by that week's
+  total sample $ resolved, to remove the growth trend) into high-loss and normal weeks.
+- Prediction: after high-loss weeks, traders seek safety, so favourites (Yes in [0.70, 0.95], Yes/No binaries,
+  not up-or-down) are overpriced: premium p − Y higher in high-loss weeks. Price-bin-adjusted, clustered by WEEK.
+- S19: in high-loss weeks buy NO on favourites (Yes in [0.70, 0.95]); first qualifying snapshot per market.
+  Pass bar as round 2 (TEST mean > 0 at 1¢ with week-clustered CI excluding 0, >= 300 trades, > 0 at MonVWAP + 1¢).
+- Known weakness: about 65 TEST weeks, so low power; a null is weak evidence.
+- Contamination: B12 showed favourites/longshot premia by horizon on TEST, never split by loss week.

@@ -155,3 +155,10 @@ reaction measurement (reaction.py, test_reaction.py copied at newsflow b4f8f31).
   - **CORRECTION** to the round-1 binary S1 survivor: crypto price markets (+17.9%) carried it; the rest is
     +3.3% with a week-clustered CI including 0, decaying to +1.5%.
   - New standing rule: report week-clustered CIs for any cross-market strategy.
+
+## 2026-10-29 — B14-B17 analysis choices (made before any wallet statistic was seen)
+- Wallet return = PnL / $ on fills in markets that have resolved; the $1,000 / 20-fill thresholds use all fills.
+- B16: deciles exclude the top 1% by $, which is reported on its own; top-minus-bottom decile is the headline.
+- B14: sells with no prior long position (minted inventory, market makers) are skipped; paper gains/losses use the
+  day's last p_event from the px files; positions at average cost.
+- B17: "before" = the 7 days before the resolution; buy price $-weighted; events need buys in both windows.
