@@ -48,6 +48,7 @@ def candidates(events, sport_ids, seen):
                 bid, ask = 1 - ask, 1 - bid
             if not 0.05 <= bid <= 0.95:
                 continue
+            seen.add(m["conditionId"])  # a market listed under two events is entered once
             rows.append(dict(entered_utc=now, condition_id=m["conditionId"], slug=m.get("slug"), question=m.get("question"),
                              end_date=m.get("endDate"), volume24hr=round(vol, 2), yes_bid=bid, yes_ask=ask, no_ask=round(1 - bid, 4)))
     return rows
@@ -56,9 +57,11 @@ def candidates(events, sport_ids, seen):
 def scan():
     OUT.mkdir(parents=True, exist_ok=True)
     seen = set()
-    if ENTRIES.exists():
-        with ENTRIES.open(encoding="utf-8") as f:
-            seen = {r["condition_id"] for r in csv.DictReader(f)}
+    for p in [ENTRIES, *OUT.glob("f1_backlog*.csv")]:  # backlog markets are never entered again
+        if p.exists():
+            with p.open(encoding="utf-8") as f:
+                seen |= {r["condition_id"] for r in csv.DictReader(f)}
+    n0 = sum(1 for _ in ENTRIES.open(encoding="utf-8")) - 1 if ENTRIES.exists() else 0
     rows = candidates(u.fetch_events(), u.sports_tag_ids(), seen)
     new = not ENTRIES.exists()
     with ENTRIES.open("a", newline="", encoding="utf-8") as f:  # utf-8: Windows default cp1252 cannot write some questions
@@ -66,7 +69,7 @@ def scan():
         if new:
             w.writeheader()
         w.writerows(rows)
-    print(f"{dt.datetime.now(dt.timezone.utc):%Y-%m-%d %H:%M} new entries {len(rows)}, total {len(seen) + len(rows)}")
+    print(f"{dt.datetime.now(dt.timezone.utc):%Y-%m-%d %H:%M} new entries {len(rows)}, total {n0 + len(rows)}")
 
 
 def settle():
@@ -108,6 +111,7 @@ def _selfcheck():
     rows = candidates(ev, set(), set())
     assert [r["condition_id"] for r in rows] == ["c1"] and rows[0]["no_ask"] == 0.70, rows
     assert candidates(ev, set(), {"c1"}) == []
+    assert len(candidates(ev + ev, set(), set())) == 1  # same market under two events
     print("selfcheck ok")
 
 
