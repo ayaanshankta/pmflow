@@ -169,3 +169,14 @@ reaction measurement (reaction.py, test_reaction.py copied at newsflow b4f8f31).
 - S19 buy NO on favourites in high-loss weeks: snapshot+1c +30% but MonVWAP+1c -22% (n=5,526) -> fails the bar.
   The snapshot profit is the stale-last-fill entry artefact seen in S1, not a loss-week effect
   (favourites in normal weeks show the larger premium).
+
+## 2026-10-29 — B20 result (TEST run once): passes the bar as written; not yet believed
+- DEV snapshot: No basket O >= 0.02 +4.0% (slip), but median +0.2%; mean driven by stale pre-result prices (O up to 1.9).
+- TEST Monday VWAP + slip, No basket O >= 0.02: +3.88% [+2.17, +7.04], n = 3,197 (week-clustered) -> passes.
+  Yes basket loses at MonVWAP (-9.0% [-14.3, -3.1]).
+- Post-hoc decomposition: no-winner baskets (11) are not the driver; half the total return is from the top 1% of baskets
+  (3-way soccer matches with O > 0.5 at MonVWAP: legs' VWAPs are taken at different times of a match day, not a
+  simultaneous price). O in [0.02, 0.2): +0.80% [+0.73, +0.86], n = 2,692, median hold ~4 days, near the one-winner
+  ceiling O/(k-1-O).
+- Open question: Monday VWAP is not simultaneous across legs, and selecting on O selects that noise. Verifier dispatched.
+  The real check is simultaneous order-book quotes on whole families (pmflow result 6 saw none on one family).
