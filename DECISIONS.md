@@ -139,3 +139,14 @@ reaction measurement (reaction.py, test_reaction.py copied at newsflow b4f8f31).
   - The pre-registered w fit is mis-specified (actual on both sides ⇒ w > 0 mechanically). It is reported, not interpreted.
   - Post-hoc efficiency test: m/m b = −0.24 [−0.64, −0.08] (24 h), −0.33 [−0.75, −0.12] (1 h), an anchoring signature, n = 13–15.
   - CORRECTION: the y/y "+0.20, the opposite" I reported earlier is not reproducible. y/y is −0.45 [−1.24, +0.15], inconclusive.
+- **B8 in-game overreaction: NOT FEASIBLE on archive data (checked 2026-10-29).**
+  - Kaggle `deocheng/nba-data-1946-2026` play_by_play.csv (3.3 GB; header read via a 6 KB range request, not downloaded)
+    has only game clock (period, clock, clock_seconds, pctimestring). It has no wall-clock time.
+  - Game clock → real time is too loose (timeouts, reviews, halftime) to line up with fills, which fails the bar set in
+    the plan.
+  - The only clean route is forward: record a live score feed with wall-clock timestamps next to the Polymarket recorder
+    this season. Not started; it would be a new recorder on the desktop and needs a source whose terms allow polling.
+- **B9 settlement lag: small, not exploitable** (research/behavioral-b9-result.md).
+  - $1.63M of post-game flow trades at ≥ 99¢ (+0.26%); only $37k sits at 98–99¢ (+1.9%).
+  - The large-discount fills (q < 0.9, ~$96k) are resolution-risk cases (stat corrections, missing or postponed games,
+    no-show rules), median 13 h after tip, not free money.
