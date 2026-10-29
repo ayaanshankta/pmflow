@@ -115,3 +115,16 @@ reaction measurement (reaction.py, test_reaction.py copied at newsflow b4f8f31).
   the verifier showed that holds only on the pre-registered pair subset; on all priced points props it is +3 % with a CI
   including 0, +2 % on played games, and ≤ 0 at 2–3¢ slippage. Result file: research/behavioral-b7-result.md.
 - Lesson: when a test passes on a filtered subset, re-run it on the simplest unfiltered universe before reporting it.
+- **B1/B2/B4/B5/S1 development decisions** (written after the dev run, BEFORE the test run; behav_analyze.py):
+  (1) outcome Y from the on-chain payout vector (1,0 = Yes; 1,1 split = 0.5) instead of `winning_outcome_label`,
+  because the seq-1 label is missing on 4.9 % of snapshot rows; payout and label agree wherever both exist.
+  (2) "Yes/No market" = seq-1 label is exactly "Yes"; unknown labels (23,124 rows) are excluded, not guessed.
+  (3) B5 uses only snapshots whose price is a real Sunday VWAP (a stale last-fill price makes the 24 h move meaningless).
+  (4) The fee row uses the documented taker fee 0.04·q·(1−q) per share on markets with taker_base_fee > 0, next to
+  0 fee (the archive charged 0 on sampled 2025 fills); both reported. (5) Extra robustness rows: S1 without stale
+  prices, and S1 CIs clustered by event (neg-risk id, else market) as the rules ask. No rule was changed.
+  **S1 FROZEN for test: lowest volume tercile (cuts $3,838 / $27,851 from dev), buy NO when Yes is 0.20–0.50,**
+  dev +5.8 % [+2.2, +9.3] per $1 at 1¢, n = 1,332, median $205 traded in the 24 h before entry.
+  Warning written now, before the test: on dev the premium is NOT larger in thin markets (low − high +0.004, CI
+  [−0.012, +0.021]) and the same band over all terciles makes +4.7 %. If S1 passes on test, the honest reading is
+  "Yes at 20–50¢ is overpriced", not "thin markets are mispriced".

@@ -1,6 +1,7 @@
 """Hand-made days with known snapshot rows.  Run: python test_behav.py"""
 from datetime import date
 
+import numpy as np
 import pandas as pd
 
 import behav_build as bb
@@ -35,3 +36,19 @@ assert abs(t13.loc["A"].p - 0.90) < 1e-12 and t13.loc["A"].p_from_last_fill and 
 t20 = s[s["T"] == U("2025-01-20")]
 assert t20.empty, t20                                               # last fill 14 days old: not open
 print("ALL BEHAV TESTS PASS")
+
+
+def test_analyze_helpers():
+    import behav_analyze as a
+    pt, dr = a.boot_cells(["m1", "m1", "m2"], [0, 1, 1], np.array([1.0, 2.0, 4.0]), 2)
+    assert np.allclose(pt, [1.0, 3.0]) and dr.shape == (a.B, 2)
+    # two groups, same bins: adjusted premium = bin-weighted mean of cell premiums
+    d = pd.DataFrame(dict(g=[0, 0, 1, 1], bin=[0, 5, 0, 5], p=[.01, .45, .01, .45], Y=[0., 1., 0., 0.], m=list("abcd")))
+    pt, _ = a.adjusted(d, "g", [0, 1], "m")
+    assert np.allclose(pt, [(.01 + (.45 - 1)) / 2, (.01 + .45) / 2])
+    assert abs(a.logit_slope(np.r_[np.full(500, .2), np.full(500, .8)], np.r_[np.r_[np.ones(100), np.zeros(400)], np.r_[np.ones(400), np.zeros(100)]]) - 1) < 1e-6
+    print("analyze helpers ok")
+
+
+if __name__ == "__main__":
+    test_analyze_helpers()
