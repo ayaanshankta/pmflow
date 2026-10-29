@@ -135,3 +135,7 @@ reaction measurement (reaction.py, test_reaction.py copied at newsflow b4f8f31).
   - Only binary markets keep an edge (+5.5% [+2.6, +8.9]). Post-hoc; forward test needed before any claim.
 - **B6 team series: NO** (research/behavioral-b6-result.md). Test 2,370 pairs: loser premium +0.001 [−0.019, +0.020].
   Buying the loser is −0.7% (all) and −6.8% (upset-only, CI excludes 0 on the losing side). The dev +27% (173 pairs) was noise.
+- **B3 CPI result** (research/behavioral-b3-cpi-result.md):
+  - The pre-registered w fit is mis-specified (actual on both sides ⇒ w > 0 mechanically). It is reported, not interpreted.
+  - Post-hoc efficiency test: m/m b = −0.24 [−0.64, −0.08] (24 h), −0.33 [−0.75, −0.12] (1 h), an anchoring signature, n = 13–15.
+  - CORRECTION: the y/y "+0.20, the opposite" I reported earlier is not reproducible. y/y is −0.45 [−1.24, +0.15], inconclusive.
