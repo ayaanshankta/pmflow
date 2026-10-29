@@ -256,3 +256,11 @@ Wallet tests (new pass `behav_wallets.py` over both layers; maker and taker addr
 - Priors and contamination: B2 showed multi-outcome legs overpriced, and the S1 verifier showed the neg-risk half
   of fade-Yes losing at Monday VWAP (single legs, not baskets). Result 6 of pmflow (live quotes, one family) saw no
   complete-set mispricing. Expected result: overround is mostly stale tail prices and is not achievable.
+
+## B20-forward (2026-10-29, before any new quote is read): overround on simultaneous live quotes
+- Data: desktop top-of-book recordings of complete exclusive families from 2026-10-13 14:16:03 UTC (conn_id 46) on,
+  excluding recorded gaps. Method and bar: C1 in sets_check.py unchanged (rules blob 1582327e1f20), side B
+  (sum of live Yes bids > 1 + fee; selling every Yes = the No basket of B20).
+- Added report for B20: per family, the share of fresh time with sum of bids > 1 and > 1.01, episode duration, and
+  min displayed size in $. B20 counts as confirmed only if fee-clearing fresh episodes appear in >= 3 families with
+  >= $50 of size; otherwise the B20 archive result is read as a non-simultaneous-price artefact.
