@@ -140,3 +140,11 @@ game, the market prices the next game as if the last one were the new normal.
   play-by-play; usable only if it carries wall-clock or the game clock can be mapped to real time reliably).
 - **B9 Settlement lag:** after the final whistle, how far below 1 (or above 0) do decided props trade before resolution,
   for how long, and with how much size? A mechanical gap, not a bias; measured from fills after the game's end.
+- **B7 development decisions, 2026-10-29 (test period not yet run):**
+  - Fixes during development (bugs, not tuning): slug-name aliases and jr/ii suffixes; and **next-game no-shows (DNP) are
+    now counted** (an over bet loses, an under bet wins), since dropping them selects on the outcome and flatters overs.
+  - S7 on development: every cell negative (best: points k = 1.0, −2.8 % at 1¢; all stats k = 1.5, −2.9 %). Rule applied:
+    k = 1.0 (points) is the chosen cell; ALL cells are reported on TEST regardless.
+  - **New hypothesis from development, S7b "the over is overpriced" (Hugo's Yes premium, in props):** buy the UNDER on every
+    priced main line, at 1¢ and 2¢; and an S7c variant: buy the under only after a great game (|z| ≥ 1, the hot-hand
+    case). Pass bar as S7. Development showed premium +0.04..+0.10 in every bucket; TEST decides.

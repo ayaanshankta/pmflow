@@ -18,7 +18,12 @@ rng = np.random.default_rng(0)
 
 def norm(name):
     name = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode()  # Jokić -> Jokic
-    return re.sub(r"-+", "-", re.sub(r"[^a-z0-9]+", "-", name.lower().replace("'", "").replace(".", ""))).strip("-")
+    k = re.sub(r"-+", "-", re.sub(r"[^a-z0-9]+", "-", name.lower().replace("'", "").replace(".", ""))).strip("-")
+    k = re.sub(r"-(jr|sr|ii|iii|iv)$", "", k)  # suffixes are used inconsistently between slugs and box scores
+    return ALIAS.get(k, k)
+
+
+ALIAS = {"alexandre-sarr": "alex-sarr", "nicolas-claxton": "nic-claxton"}  # slug name -> box-score name
 
 
 def boxscores():
@@ -62,18 +67,26 @@ def build_pairs():
     m = main_lines(props)
     j = m.merge(box, left_on=["pkey", "gdate"], right_on=["pkey", "date"], how="left")
     print(f"props {len(props):,}; priced main lines {len(m):,}; matched to box scores {j.PTS.notna().sum():,} "
-          f"({j.PTS.notna().mean():.1%}); unmatched players e.g. {sorted(j[j.PTS.isna()].pkey.unique())[:6]}")
-    j = j[j.PTS.notna()].copy()
+          f"({j.PTS.notna().mean():.1%}); unmatched = did not play (over rate {j[j.PTS.isna()].y_over.mean():.3f}) "
+          f"or name not in box ({(~j.pkey.isin(set(box.pkey))).sum()})")
+    j["dnp"] = j.PTS.isna() & j.pkey.isin(set(box.pkey))
+    # previous box-score game before each prop date (also for DNP rows, which have no box row of their own)
+    bd = box[["pkey", "date"]].rename(columns={"date": "bdate"})
+    j = j.sort_values("gdate")
+    j["prev_date"] = pd.merge_asof(j[["pkey", "gdate"]].assign(t=pd.to_datetime(j.gdate)),
+                                   bd.assign(t=pd.to_datetime(bd.bdate) + pd.Timedelta(hours=12)).sort_values("t"),
+                                   on="t", by="pkey", direction="backward")["bdate"].to_numpy()
+    j = j[j.PTS.notna() | j.dnp].copy()
     j["actual"] = [r[STAT[s]] for s, r in zip(j.stat, j.to_dict("records"))]
     j["sd"] = [r[f"{STAT[s]}_sd"] for s, r in zip(j.stat, j.to_dict("records"))]
-    j["z"] = (j.actual - j.line) / j.sd
+    j["z"] = (j.actual - j.line) / j.sd  # NaN for DNP rows: they can be game n+1, never game n
     j["short_min"] = j.MIN < 0.6 * j.MIN_avg
     j = j.sort_values(["pkey", "stat", "gdate"])
     nxt = j.groupby(["pkey", "stat"]).shift(-1)
     pairs = pd.DataFrame({
         "player": j.pkey, "stat": j.stat, "date_n": j.gdate, "z_n": j.z, "short_min_n": j.short_min, "line_n": j.line,
         "date_n1": nxt.gdate, "prev_date_n1": nxt.prev_date, "line_n1": nxt.line, "p_over": nxt.p_over,
-        "y_over": nxt.y_over, "z_n1": nxt.z, "usd_pre": nxt.usd_pre})
+        "y_over": nxt.y_over, "z_n1": nxt.z, "usd_pre": nxt.usd_pre, "dnp_n1": nxt.dnp})
     pairs = pairs.dropna(subset=["date_n1", "z_n", "p_over"])
     gap = (pd.to_datetime(pairs.date_n1) - pd.to_datetime(pairs.date_n)).dt.days
     # game n must be the player's last game before n+1 (else the market saw a later game we don't model) and 1-5 days back
@@ -84,7 +97,8 @@ def build_pairs():
 
 
 def report(pairs, label):
-    print(f"\n==== {label}: {len(pairs):,} pairs, {pairs.player.nunique()} players ====")
+    print(f"\n==== {label}: {len(pairs):,} pairs, {pairs.player.nunique()} players; next game a DNP in "
+          f"{pairs.dnp_n1.astype(bool).sum()} (counted: an over bet loses, an under bet wins) ====")
     normal = pairs[~pairs.short_min_n]
     print("(a) line change after game n, by bucket (normal-minutes games):")
     print(normal.assign(dL=normal.line_n1 - normal.line_n).groupby(["stat", "bucket"]).dL.agg(["mean", "count"]).round(2).to_string())
@@ -121,6 +135,19 @@ def report(pairs, label):
                 rows.append(dict(stats="all" if len(stats_) == 3 else "points", k=k, slip=slip, bets=int(ok.sum()),
                                  mean_ret=ret[ok].mean(), ci_lo=lo, ci_hi=hi, win_rate=win[ok].mean()))
     print("S7 fade-the-last-game:"); print(pd.DataFrame(rows).round(4).to_string(index=False))
+    rows_b = []
+    for name, sel in (("S7b under, every line", normal.index == normal.index),
+                      ("S7c under after great (z>=1)", (normal.z_n >= 1).to_numpy())):
+        for stats_ in (("points", "rebounds", "assists"), ("points",)):
+            s = normal[sel & normal.stat.isin(stats_).to_numpy()]
+            for slip in (0.01, 0.02):
+                entry = (1 - s.p_over) + slip
+                ok = entry < 1
+                ret = (1 - s.y_over) / entry - 1
+                lo, hi = cluster_ci(ret[ok], s.player[ok])
+                rows_b.append(dict(rule=name, stats="all" if len(stats_) == 3 else "points", slip=slip, bets=int(ok.sum()),
+                                   mean_ret=ret[ok].mean(), ci_lo=lo, ci_hi=hi, win_rate=(1 - s.y_over[ok]).mean()))
+    print("S7b/S7c buy the under:"); print(pd.DataFrame(rows_b).round(4).to_string(index=False))
     return pd.DataFrame(rows)
 
 
