@@ -114,6 +114,8 @@ def _ladder_group(ms):
     ends = [m["end"] for m in ms]
     low = " ".join(masked).lower() + " " + " ".join((m["title"] or "") for m in ms)
     if dvary and not nvary:
+        if any(e is None for e in ends):  # Gamma omits endDate on some members; unorderable, so unclassifiable
+            return None, "missing end date"
         if re.search(r"\bthrough\b", low):
             return "deadline_persist", sorted(zip(ends, ms), key=lambda x: x[0])  # earlier = weaker
         if re.search(r"\bby\b|\bbefore\b", low):

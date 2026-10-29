@@ -93,3 +93,11 @@ def test_universe_order_is_deterministic_on_ties():
     df = pd.DataFrame(dict(market_id=["b", "a", "d", "c"], volume24hr=[1.0, 1.0, 0.0, 0.0]))
     out = df.sort_values(["volume24hr", "market_id"], ascending=[False, True], kind="stable").market_id.tolist()
     assert out == ["a", "b", "c", "d"]
+
+
+def test_deadline_ladder_with_missing_end_is_dropped():
+    ms = [dict(question="Will X happen by June 30?", title="June 30", end="2026-06-30T00:00:00Z"),
+          dict(question="Will X happen by December 31?", title="December 31", end=None)]
+    assert families._ladder_group(ms) == (None, "missing end date")
+    ms[1]["end"] = "2026-12-31T00:00:00Z"
+    assert families._ladder_group(ms)[0] == "deadline_onset"
