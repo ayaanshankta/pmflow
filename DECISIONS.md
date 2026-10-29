@@ -128,3 +128,8 @@ reaction measurement (reaction.py, test_reaction.py copied at newsflow b4f8f31).
   Warning written now, before the test: on dev the premium is NOT larger in thin markets (low − high +0.004, CI
   [−0.012, +0.021]) and the same band over all terciles makes +4.7 %. If S1 passes on test, the honest reading is
   "Yes at 20–50¢ is overpriced", not "thin markets are mispriced".
+- **B2/S1 test result** (research/behavioral-b2-s1-result.md):
+  - B2 thin-market Yes premium FAILS (low − high −0.001); a uniform Yes premium of ~+1.6 pts holds.
+  - S1 PASSES as pre-registered (+5.1% [+4.2, +6.1], n = 18,614), but the verifier showed the neg-risk half is
+    overround, and at an executable Monday-VWAP entry the strategy is −0.1% overall.
+  - Only binary markets keep an edge (+5.5% [+2.6, +8.9]). Post-hoc; forward test needed before any claim.
