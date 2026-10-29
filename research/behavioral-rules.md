@@ -169,3 +169,46 @@ Do decided props trade below 1 for the winning side, for how long, and with how 
   that "decided" is wrong: stat corrections, late resolution disputes, or my tip + 3 h rule.
 - No pass bar, no strategy claim: the question is how big the gap is and how much size it takes. Fees: report gross and
   the documented 0.04·q·(1−q).
+
+## Round 2 (2026-10-29, Ayaan: "look everywhere in the book"). Rules written before any of these statistics was computed.
+Same snapshot table, Yes/No markets without up-or-down, same periods (DEV snapshots 2023-01-02..2024-12-30, TEST
+2025-01-06..2026-03-30), same price-bin adjustment and clustering (market; event also reported), and the same one-entry-per-market
+strategy mechanics as S1 (1¢ and 2¢ slippage, entry at the snapshot price; ALSO reported at the Monday VWAP entry
+from behav_entry.py, since the S1 check showed the pre-T entry flatters results). Pass bar for every strategy: TEST mean return
+> 0 at 1¢ with CI excluding 0, ≥ 300 trades, AND > 0 at the Monday-VWAP entry.
+
+- **B10 Planning fallacy (ch. 23).** "Planned-completion" markets: slug has `-by-` or `-before-` AND a project verb
+  (release|launch|pass|passes|sign|signs|approve|approved|ipo|announce|complete|ship|open|reopen|deliver|implement|start|
+  confirm|confirmed). Compare with other deadline markets. Prediction: price-bin-adjusted premium higher. S10: buy NO
+  when Yes ∈ [0.10, 0.60].
+- **B11 Wishful thinking on crypto upside (ch. 9, 24).** Crypto slugs (bitcoin|btc|ethereum|eth|solana|sol|xrp|doge|
+  dogecoin) with an upside word (above|reach|hit|exceed|higher|over|ath|all-time) vs a downside word (below|dip|fall|drop|
+  under|lower|crash). Prediction: the upside Yes premium is larger. S11: buy NO on upside markets with Yes ∈ [0.10, 0.60].
+  **Contamination:** the S1 verifier reported crypto "above" ladders strongly positive to fade on TEST. So for B11 the
+  confirmatory period is DEV (2023–24) plus snapshots 2026-04-06..2026-04-27. The TEST number is reported but carries
+  no weight.
+- **B12 Hope that does not decay (ch. 29, possibility effect over time).** Longshots, Yes ∈ [0.02, 0.10]: premium by days
+  to close (≤ 2, 2–7, 7–30, > 30). Prediction: premium larger close to the deadline. S12: buy NO when Yes ∈ [0.02, 0.10]
+  and ≤ 7 days to close. Mild contamination: B1's horizon slopes on TEST were seen (all-price, not longshot premium).
+- **B13 Round-number anchoring (ch. 11).** Snapshots priced from an exact last fill (p_from_last_fill). Round = within
+  0.001 of {0.10, 0.20, 0.25, 0.30, 0.40, 0.50, 0.60, 0.70, 0.75, 0.80, 0.90}; neighbours = 0.01–0.02 away from a round
+  price. Report the share of fills at round prices and the premium at round vs neighbour prices. No strategy.
+
+Wallet tests (new pass `behav_wallets.py` over both layers; maker and taker addresses).
+- Per fill: buyer and seller of token `asset_id` at `price`; v = the token's on-chain payout (0, 0.5 or 1);
+  hold-to-resolution PnL of the buyer = usdc·(v/price − 1), the seller the negative. Fees ignored.
+- Aggregated per (wallet, month traded, month resolved). Wallet return = PnL / $ traded.
+- **B15 Illusion of skill (ch. 20).** Periods P1 = trades in 2024, P2 = trades in 2025. Wallets with ≥ $1,000 traded and
+  ≥ 20 fills in both. Report the Spearman correlation of P1 vs P2 return, and the P2 return of the P1 top decile, with a
+  bootstrap CI over wallets. Kahneman's fund managers ≈ 0 persistence; Polymarket may differ (sharps, insiders). No
+  strategy claim from this test. A copy-trading test needs its own rules and a later pass.
+- **B16 Overconfidence / overtrading (ch. 24).** In P2, wallet return by deciles of fill count (wallets ≥ $1,000).
+  Prediction: the most active retail-size wallets do worst. Reported separately for the top 1% by $ volume (likely market makers).
+- **B14 Disposition effect (ch. 26, 32; Odean 1998).** Sample: wallets with int(address, 16) % 50 == 0, all their fills
+  in both roles. Positions per (wallet, token) at average cost.
+  - On each day a wallet sells any token, every other open position with a price that day is an opportunity, marked as
+    a gain or a loss against the day's last price.
+  - PGR = realized gains / (realized + paper gains); PLR likewise. Prediction: PGR > PLR. Bootstrap over wallets.
+- **B17 Break-even effect (prospect theory).** Same sample. After a position of ≥ $20 resolves as a loss vs as a win,
+  compare the wallet's mean buy price over the next 7 days with its own mean buy price before. Prediction: lower
+  (longer shots) after losses. Paired within wallet, bootstrap over wallets.
