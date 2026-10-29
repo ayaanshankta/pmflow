@@ -9,8 +9,8 @@ at outcomes, tuned on 2023–24 only, and ran each test once on 2025–26. Short
 1. **A "Yes" premium is real, but it is not a thin-market effect.** Yes is priced ~1.6 pts above its hit rate, and
    the gap is the same in the lowest, middle and highest volume terciles (+1.6 / +1.6 / +1.7 pts). A fade-Yes rule
    (buy NO when Yes trades at 20–50¢) shows +5% per $1 on paper. Most of that is two things: multi-outcome fields whose
-   Yes prices sum above 100%, and entering at a price from before the signal. At a price you could actually trade, only
-   plain binary markets keep an edge (~+5%). Those markets trade ~$60/day, so it's real but tiny.
+   Yes prices sum above 100%, and entering at a price from before the signal. Once you trade at an achievable price and separate out market direction (thousands of crypto "above X" markets are
+   really one bet that crypto falls), no reliable strategy is left. The bias is real but not something to harvest.
 
 2. **CPI anchoring: your intuition shows up in month-on-month CPI.** When the market's expectation sits near the prior
    print, the actual print tends to land further from it than expected. Roughly, the market is 25–30% too close to the
