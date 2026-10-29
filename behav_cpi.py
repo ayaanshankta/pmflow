@@ -94,6 +94,8 @@ def price_at(g, tau, max_age=48 * 3600):
 def implied(ladder, col):
     """Expected value from a ladder at one time. Brackets: normalised probabilities (tails at their boundary value)."""
     l = ladder.dropna(subset=[col])
+    if l.empty:
+        return np.nan, np.nan
     if l.kind.iloc[0] == "bracket":
         if len(l) < 3:
             return np.nan, np.nan
@@ -144,6 +146,7 @@ def main():
             l = mk[mk.measure == measure] if len(mk) else mk
             if len(l) == 0:
                 continue
+            l = l[l.kind == l.kind.value_counts().idxmax()]  # one ladder per measure: the larger one
             l = l.drop_duplicates("val") if l.kind.iloc[0] == "gt" else l.sort_values("p24", na_position="first").drop_duplicates(["val", "side"], keep="last")
             act, flag = actual_from(l)
             i24, s24 = implied(l, "p24")
