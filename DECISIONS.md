@@ -162,3 +162,10 @@ reaction measurement (reaction.py, test_reaction.py copied at newsflow b4f8f31).
 - B14: sells with no prior long position (minted inventory, market makers) are skipped; paper gains/losses use the
   day's last p_event from the px files; positions at average cost.
 - B17: "before" = the 7 days before the resolution; buy price $-weighted; events need buys in both windows.
+
+## 2026-10-29 — B19 result (TEST run once): fails
+- DEV: favourite premium high-loss minus normal weeks +0.0005 [-0.0256, +0.0248].
+- TEST: -0.0173 [-0.0374, +0.0033] (wrong sign; prediction > 0). All prices -0.0050 [-0.0091, -0.0012].
+- S19 buy NO on favourites in high-loss weeks: snapshot+1c +30% but MonVWAP+1c -22% (n=5,526) -> fails the bar.
+  The snapshot profit is the stale-last-fill entry artefact seen in S1, not a loss-week effect
+  (favourites in normal weeks show the larger premium).
