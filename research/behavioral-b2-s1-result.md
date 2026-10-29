@@ -84,3 +84,14 @@ snapshot per market)
   - Size is the binding limit. A $62/day market cannot take more than tens of dollars per trade.
 - For Hugo: his thin-market claim does not hold, but a broad, small Yes bias does, and fields sum above 1.
   - A reference index built on these prices should de-bias Yes and normalise multi-outcome fields.
+
+## CORRECTION (later on 2026-10-29, after the round-2 crypto test): the binary "survivor" is weaker than stated above
+The B11 test showed that crypto price markets move together: one rally or sell-off decides all of them. Applied here,
+binary S1 at the Monday-VWAP entry (+5.5%, n = 4,919) splits into:
+- **Crypto price markets (15% of trades):** +17.9%. This is a bet that crypto falls, which happened in 2025–26, not a bias.
+- **Everything else:** +3.3% [+0.8, +6.0] clustered by event, **[−0.2, +7.0] clustered by week** (common shocks),
+  and decaying: +10% in 2025Q1, +1.5% in 2026Q1. It still contains Equities/Finance price markets (+25%), which are the
+  same kind of direction bet.
+- It is not an artifact of short-dated markets (excluding resolution within 2 days: +11.9% at Monday VWAP).
+**Revised reading:** no reliable fade-Yes edge remains once market-wide direction is separated out. The general ~1.6 pt
+Yes premium (B2) stands. The tradeable strategy does not.

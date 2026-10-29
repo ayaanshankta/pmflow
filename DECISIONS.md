@@ -150,3 +150,8 @@ reaction measurement (reaction.py, test_reaction.py copied at newsflow b4f8f31).
   - $1.63M of post-game flow trades at ≥ 99¢ (+0.26%); only $37k sits at 98–99¢ (+1.9%).
   - The large-discount fills (q < 0.9, ~$96k) are resolution-risk cases (stat corrections, missing or postponed games,
     no-show rules), median 13 h after tip, not free money.
+- **Round 2 (B10–B13, B18) result** (research/behavioral-round2-result.md): no tradeable bias.
+  - B11 crypto-upside "edge" (+9% on TEST) reverses on the clean periods (Apr 2026 −31%). It is market direction, not a bias.
+  - **CORRECTION** to the round-1 binary S1 survivor: crypto price markets (+17.9%) carried it; the rest is
+    +3.3% with a week-clustered CI including 0, decaying to +1.5%.
+  - New standing rule: report week-clustered CIs for any cross-market strategy.
