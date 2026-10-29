@@ -99,3 +99,24 @@ game is mostly noise, so the next game should be underpriced for the team that j
 - Periods as before: development games dated ≤ 2024-12-31; TEST 2025-01-01 .. 2026-04-28, evaluated once.
 - Strategy S6: buy L before game n+1 at p_L + 1¢ (and 2¢), hold to the result. Variants fixed now: all L; upset-only L.
   Pass bar on TEST: mean return > 0 at 1¢ with 95 % CI excluding 0 (cluster = series), ≥ 300 games. Both variants reported.
+
+## B7 Player props: does the market overreact to one game? (ch. 17 regression to the mean, ch. 10 law of small numbers / hot hand) — added 2026-10-29, before any prop price was computed
+Ayaan's request: follow players (≥ the top 20 by volume, plus a pooled test on all) and ask whether, after a bad or a great
+game, the market prices the next game as if the last one were the new normal.
+- Markets: NBA player props `nba-{a}-{b}-{YYYY-MM-DD}-{points|rebounds|assists}-{player}-{X}pt{Y}`, binary layer;
+  seq-1 = "Yes" = over the line. Season window 2025-10-15 .. 2026-04-28 (props appear in the archive by 2025-12).
+  `close_at` = tip-off (checked on 2025-12-09 slugs); props trade in-play after it, so prices stop strictly at tip-off.
+- Pre-game price: VWAP of P(over) over fills in [tip − 6 h, tip − 5 min); ≥ 1 fill. Outcome Y_over from the winner.
+- Performance of game n (market-only; NBA's stats API refused requests, and per-game scraping is off-limits): for a
+  player-stat in game n, sign_n = +1 if every line that game resolved over ("great"), −1 if every line resolved under ("bad"),
+  0 otherwise. Main line of game n+1 = the line with the most pre-game $ (ties: closer to 0.5).
+- Pairs: same player and stat, game n+1 dated 1–5 days after game n.
+- Measures: (a) line change L(n+1) − L(n) by sign_n (how far the market re-sets after one game; descriptive);
+  (b) premium = p_over(n+1) − Y_over(n+1), by sign_n. Overreaction ⇒ premium > 0 after great games (over too dear) and
+  < 0 after bad games; primary statistic = premium(great) − premium(bad) > 0.
+- Strategy S7 "fade the last game": after a bad game buy the over; after a great game buy the under; at entry price
+  + 1¢ (and 2¢); hold to the result; one bet per player-stat-game. Variants fixed now: all stats; points only.
+- Periods: development games dated ≤ 2026-02-15; TEST 2026-02-16 .. 2026-04-28, evaluated once.
+- Pass bar on TEST: S7 mean return > 0 at 1¢ with 95 % CI excluding 0 (cluster = player), ≥ 300 bets; and the primary
+  premium difference with CI excluding 0. Player panel: the 20 players with the most pre-game $ in development, per-player
+  premiums reported descriptively (too few games each for per-player claims).
