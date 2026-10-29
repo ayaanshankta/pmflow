@@ -192,3 +192,19 @@ reaction measurement (reaction.py, test_reaction.py copied at newsflow b4f8f31).
 - B15 no useful persistence; B16 prediction fails; B14 mixed; B17 no effect after the mechanical fix.
 - Desktop: PC crashed 2026-10-16 03:27 local; pmflow stack down since 2026-10-16 08:26:04 UTC. Restart requested
   after the B20-forward sets_check run.
+
+## 2026-10-29 — Open exploration round (Ayaan: "keep smashing, find a real edge"), DEV only
+- Discipline: explore on DEV freely; log every feature/group tried; survivors get pre-registered and run once on TEST
+  with a Bonferroni-style bar for the number tried.
+- New entry prices for all periods (behav_entry2.py -> entry2.parquet): first fill after T, and VWAP of [T, T+2h),
+  both cut at res_ts. Replaces Monday VWAP (which mixed in post-result trades, per the B20 verifier).
+- behav_explore.py DEV scan: 35 feature-quintile cells (week move, 24h move, attention, staleness, age, volume, days to
+  close), 4 signed-move bins, 12 slug groups, 4 structure flags, 25 categories = 80 cells; plus 17 slices of the
+  up-move cell and 17 executable checks (behav_exec.py). Running total tried: ~114.
+- Findings: Yes after a > 20-pt weekly rise is overpriced +15 pts, but almost all of it is thin markets / single
+  last-fill spikes (+31 pts) and it is gone at the 2h VWAP (-17%). In liquid markets (usd_24h > $1k) no
+  overreaction and no momentum either direction. Weak positives at p_next: > 160 d to close +4.8% (over 5+ months),
+  low attention +5.0%, Airdrops n = 37.
+- Reading: liquid prices are efficient at weekly horizons; the human errors are in thin markets and are only
+  capturable by resting orders. Next: behav_bars.py (daily bars + taker hold-to-resolution PnL per market-day) to
+  measure where passive liquidity earns from takers (bucketed by liquidity, price, horizon, category, fill size).
