@@ -120,3 +120,16 @@ game, the market prices the next game as if the last one were the new normal.
 - Pass bar on TEST: S7 mean return > 0 at 1¢ with 95 % CI excluding 0 (cluster = player), ≥ 300 bets; and the primary
   premium difference with CI excluding 0. Player panel: the 20 players with the most pre-game $ in development, per-player
   premiums reported descriptively (too few games each for per-player claims).
+- **B7 amendment, 2026-10-29 (before any prop price or statistic was looked at; the props table was still building):**
+  real box scores replace the market-only performance measure, at Ayaan's request. Source: Kaggle
+  `szymonjwiak/nba-traditional` (CC BY-NC-SA, non-commercial research; downloaded via the Kaggle API, 2025-26 has
+  28,698 player rows 2025-10-21..2026-06-13). NBA's stats API refused requests and is not used.
+  - Join: game date + player name normalised (lower-case, punctuation removed, spaces → hyphens) against the slug's
+    player; the match rate is reported and unmatched props are dropped and counted.
+  - Performance of game n: z_n = (stat_n − line_n) / sd, where sd = the player's SD of that stat over his earlier games
+    this season (≥ 5 games, else the pair is dropped). bad: z_n ≤ −1; great: z_n ≥ +1. Games with minutes < 60 % of his
+    season-to-date average are a separate stratum (foul trouble, injury, blowout), reported but not traded.
+  - Added measure (c), the honest baseline: does z_n predict the next game's actual stat vs its line (real form)? The
+    market only overreacts if the price moves more than this.
+  - S7 entry rule: bad → buy over, great → buy under. The threshold k ∈ {0.5, 1.0, 1.5} (|z_n| ≥ k) is picked on
+    development by mean return; all three are reported on TEST. Pass bar unchanged.
