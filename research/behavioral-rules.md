@@ -148,3 +148,24 @@ game, the market prices the next game as if the last one were the new normal.
   - **New hypothesis from development, S7b "the over is overpriced" (Hugo's Yes premium, in props):** buy the UNDER on every
     priced main line, at 1¢ and 2¢; and an S7c variant: buy the under only after a great game (|z| ≥ 1, the hot-hand
     case). Pass bar as S7. Development showed premium +0.04..+0.10 in every bucket; TEST decides.
+
+## B9 Settlement lag in NBA props — rules (2026-10-29, before any post-game fill has been read)
+Mechanical, not a bias: after the game, a prop's outcome is known from the box score, but the market resolves later.
+Do decided props trade below 1 for the winning side, for how long, and with how much size?
+- Markets: the props in data/behav/props.parquet. Winner from the on-chain payout (1,0 = over), so DNP props pay the
+  under as they really did.
+- "Decided" time: tip-off (`close_at`) + 3 h (NBA regulation is ~2 h 15 m; double overtime ends by ~2 h 50 m).
+  Sensitivity: + 2.5 h and + 4 h.
+- Fills kept: every fill from tip + 2 h until on-chain resolution. Winning-side price q = p_event if the over won,
+  else 1 − p_event.
+- Reported (all props, by stat; per-prop and per-fill):
+  - Share of props with ≥ 1 fill after decided.
+  - $ after decided.
+  - Distribution of the discount 1 − q (cents).
+  - Time from decided to resolution.
+  - $ traded at q ≤ 0.98 and q ≤ 0.95 (the size a buyer of the known winner could have taken).
+  - Mean return 1/q − 1 per fill, by discount bucket.
+- Also counted: fills where q < 0.5 after decided, i.e. someone paid up for the LOSING side. These measure the risk
+  that "decided" is wrong: stat corrections, late resolution disputes, or my tip + 3 h rule.
+- No pass bar, no strategy claim: the question is how big the gap is and how much size it takes. Fees: report gross and
+  the documented 0.04·q·(1−q).
