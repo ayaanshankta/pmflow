@@ -133,3 +133,5 @@ reaction measurement (reaction.py, test_reaction.py copied at newsflow b4f8f31).
   - S1 PASSES as pre-registered (+5.1% [+4.2, +6.1], n = 18,614), but the verifier showed the neg-risk half is
     overround, and at an executable Monday-VWAP entry the strategy is −0.1% overall.
   - Only binary markets keep an edge (+5.5% [+2.6, +8.9]). Post-hoc; forward test needed before any claim.
+- **B6 team series: NO** (research/behavioral-b6-result.md). Test 2,370 pairs: loser premium +0.001 [−0.019, +0.020].
+  Buying the loser is −0.7% (all) and −6.8% (upset-only, CI excludes 0 on the losing side). The dev +27% (173 pairs) was noise.
