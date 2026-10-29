@@ -208,3 +208,11 @@ reaction measurement (reaction.py, test_reaction.py copied at newsflow b4f8f31).
 - Reading: liquid prices are efficient at weekly horizons; the human errors are in thin markets and are only
   capturable by resting orders. Next: behav_bars.py (daily bars + taker hold-to-resolution PnL per market-day) to
   measure where passive liquidity earns from takers (bucketed by liquidity, price, horizon, category, fill size).
+
+## 2026-10-29 — B20-forward on live quotes (desktop, sets_check C1 method unchanged): NOT confirmed
+- Window 2026-10-13 14:16:04 to 10-16 08:26:02 UTC (66.2 h, 300 markets, 8 complete exclusive families; the PC crash
+  ended it). B side: 0 fee-clearing fresh episodes >= 2 s with >= $50 in any family (bar: >= 3 families).
+- Sum of live Yes bids > 1 at zero cost is common (Hormuz 62%, Core CPI MoM 35%, annual CPI 25% of fresh time), but
+  the per-leg fee on 7-12 legs removes it; fee-clearing episodes lasted 0.1-10 s.
+- Reading: the archive's B20 overround is mostly what fees and simultaneity take away. Weak evidence (66 h, quiet).
+- Recorder restarted 18:23:57 UTC on a stale universe (178/300 markets ended); rebuild at cap 300 requested.
