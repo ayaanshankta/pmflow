@@ -212,3 +212,15 @@ Wallet tests (new pass `behav_wallets.py` over both layers; maker and taker addr
 - **B17 Break-even effect (prospect theory).** Same sample. After a position of ≥ $20 resolves as a loss vs as a win,
   compare the wallet's mean buy price over the next 7 days with its own mean buy price before. Prediction: lower
   (longer shots) after losses. Paired within wallet, bootstrap over wallets.
+- **B18 Recency overreaction in ANY recurring series (ch. 10 law of small numbers, ch. 17; Ayaan's generalisation of
+  B6/B7).** Series = Yes/No markets sharing a slug template after removing dates, month names, years and numbers
+  (e.g. weekly tweet counts, daily temperatures, monthly CPI, recurring polls, box office, app ranks, price ranges).
+  - Consecutive instances: the next market of the same template whose close follows the previous one's within 1–45 days.
+  - Surprise of instance k = Y_k − p_k, where p_k is its last snapshot price before resolution.
+  - Prediction under overreaction: the premium of instance k+1 at its first snapshot after instance k resolved
+    (p − Y) is positively related to the surprise of k. After an unexpected Yes, the next Yes is overpriced.
+  - Report: the slope of premium_{k+1} on surprise_k, and premium_{k+1} after |surprise| ≥ 0.5 split by sign.
+    Bootstrap over templates. Also by category.
+  - S18: after a surprise ≥ +0.5, buy NO on k+1; after ≤ −0.5, buy YES on k+1. Pass bar as above.
+  - Excludes up-or-down and sports moneylines (B6 covered those).
+  - Contamination: none seen (no series-level statistic has been computed).
