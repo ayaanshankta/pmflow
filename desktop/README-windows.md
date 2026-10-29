@@ -21,6 +21,22 @@ Stop gracefully: identify by CommandLine (never by image name), then Stop-Proces
 `New-Item data\STOP -ItemType File` makes the recorder notice within 5 s, save everything it holds and exit. Use this, then confirm the
 process is gone by CommandLine before starting a new one. `Stop-Process` ends it without the final save and loses up to a minute of rows;
 keep it for a process that does not exit within 30 s of the stop file.
+With the supervisor task running (below), create `data\SUPERVISE_HOLD` before a hand restart and delete it after, or the supervisor may
+start the recorder between the clean stop and your start line.
+
+## Supervisor task "pmflow-stack" (from 2026-10-29)
+At logon and every 5 min, `ops\pmflow_supervise.ps1` starts only the pmflow processes that are missing (the four start lines above,
+matched by full CommandLine) and logs each start to `data\supervise.log`. It never stops anything; a process whose log has not been
+written for a while gets a `WARN` line only. `data\SUPERVISE_HOLD` skips all starts; `data\STOP` skips the recorder start.
+```
+$a = New-ScheduledTaskAction -Execute conhost.exe -Argument '--headless powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "C:\projects\pmflow\ops\pmflow_supervise.ps1"' -WorkingDirectory C:\projects\pmflow
+$u = "$env:USERDOMAIN\$env:USERNAME"
+Register-ScheduledTask pmflow-stack -Action $a -Trigger (New-ScheduledTaskTrigger -AtLogOn -User $u),(New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes 5)) `
+  -Settings (New-ScheduledTaskSettingsSet -StartWhenAvailable -MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Minutes 4) -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries) `
+  -Principal (New-ScheduledTaskPrincipal -UserId $u -LogonType Interactive -RunLevel Limited)
+```
+`conhost --headless` keeps a console window from flashing every 5 min (a wscript .vbs wrapper hung under Task Scheduler on this machine).
+
 ## Reading recorder.log
 Each minute: `rows/min ... flush_s ... late_ms_* ... held=N failed_files=M`. `held` is rows kept in memory because a file could not be
 replaced (another program had it open); they are written by a later save. A line starting `NOT RECORDING` means no save has fully
