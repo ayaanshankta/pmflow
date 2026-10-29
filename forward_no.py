@@ -48,6 +48,7 @@ def candidates(events, sport_ids, seen):
                 bid, ask = 1 - ask, 1 - bid
             if not 0.05 <= bid <= 0.95:
                 continue
+            seen.add(m["conditionId"])  # a market listed under two events is entered once
             rows.append(dict(entered_utc=now, condition_id=m["conditionId"], slug=m.get("slug"), question=m.get("question"),
                              end_date=m.get("endDate"), volume24hr=round(vol, 2), yes_bid=bid, yes_ask=ask, no_ask=round(1 - bid, 4)))
     return rows
@@ -56,21 +57,23 @@ def candidates(events, sport_ids, seen):
 def scan():
     OUT.mkdir(parents=True, exist_ok=True)
     seen = set()
-    if ENTRIES.exists():
-        with ENTRIES.open() as f:
-            seen = {r["condition_id"] for r in csv.DictReader(f)}
+    for p in [ENTRIES, *OUT.glob("f1_backlog*.csv")]:  # backlog markets are never entered again
+        if p.exists():
+            with p.open(encoding="utf-8") as f:
+                seen |= {r["condition_id"] for r in csv.DictReader(f)}
+    n0 = sum(1 for _ in ENTRIES.open(encoding="utf-8")) - 1 if ENTRIES.exists() else 0
     rows = candidates(u.fetch_events(), u.sports_tag_ids(), seen)
     new = not ENTRIES.exists()
-    with ENTRIES.open("a", newline="") as f:
+    with ENTRIES.open("a", newline="", encoding="utf-8") as f:  # utf-8: Windows default cp1252 cannot write some questions
         w = csv.DictWriter(f, FIELDS)
         if new:
             w.writeheader()
         w.writerows(rows)
-    print(f"{dt.datetime.now(dt.timezone.utc):%Y-%m-%d %H:%M} new entries {len(rows)}, total {len(seen) + len(rows)}")
+    print(f"{dt.datetime.now(dt.timezone.utc):%Y-%m-%d %H:%M} new entries {len(rows)}, total {n0 + len(rows)}")
 
 
 def settle():
-    with ENTRIES.open() as f:
+    with ENTRIES.open(encoding="utf-8") as f:
         ents = list(csv.DictReader(f))
     out = []
     for i in range(0, len(ents), 50):  # one request per 50 markets
@@ -89,7 +92,7 @@ def settle():
             v_no = px[outs.index("No")]
             out.append({**e, "v_no": v_no, "ret": v_no / float(e["no_ask"]) - 1, "closed_time": m.get("closedTime")})
     if out:
-        with SETTLED.open("w", newline="") as f:
+        with SETTLED.open("w", newline="", encoding="utf-8") as f:
             w = csv.DictWriter(f, list(out[0])); w.writeheader(); w.writerows(out)
     rets = sorted(float(o["ret"]) for o in out)
     n = len(rets)
@@ -108,6 +111,7 @@ def _selfcheck():
     rows = candidates(ev, set(), set())
     assert [r["condition_id"] for r in rows] == ["c1"] and rows[0]["no_ask"] == 0.70, rows
     assert candidates(ev, set(), {"c1"}) == []
+    assert len(candidates(ev + ev, set(), set())) == 1  # same market under two events
     print("selfcheck ok")
 
 
