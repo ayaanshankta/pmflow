@@ -84,3 +84,18 @@ Paper only: the venue is closed to US persons.
   mixed-case months, integer values without "pt", and 2024 y/y forms (`annual-inflation-above-X`, `will-inflation-increase-by-X`,
   `will-us-annual-inflation-be-X`). The run was stopped and the rule widened; `annual-inflation-under-X` (one-sided, single
   market) stays out. Unit cases for each form are in the commit.
+
+## B6 Regression to the mean after a loss (ch. 17; "law of small numbers", ch. 10) — added 2026-10-29 before any sports price was computed
+Suggested by Ayaan from the Hugo call: one bad game makes the market mark a team down for the next game, but a single
+game is mostly noise, so the next game should be underpriced for the team that just lost.
+- Markets: moneyline game markets with slug `{league}-{a}-{b}-{YYYY-MM-DD}` (no suffix) in leagues nba, wnba, nhl, mlb
+  (two-way outcomes, teams that meet in consecutive games). Outcome labels are the two team names; winner from
+  `winning_outcome_label`. Dev look so far: slug names only.
+- Pre-game price: VWAP of each team's win probability over fills from 00:00 ET the day before the slug date to 11:00 ET on
+  the slug date (before day-game starts); ≥ 1 fill required.
+- Pairs: game n and n+1 between the same two teams in the same league, n+1 dated 1–4 days after n (a series).
+  L = loser of game n. Premium_L = p_L(n+1) − Y_L(n+1). Upset = L was the pre-game favourite (p_L(n) > 0.5) in game n.
+- Prediction: premium_L < 0 (L underpriced), more negative after upsets.
+- Periods as before: development games dated ≤ 2024-12-31; TEST 2025-01-01 .. 2026-04-28, evaluated once.
+- Strategy S6: buy L before game n+1 at p_L + 1¢ (and 2¢), hold to the result. Variants fixed now: all L; upset-only L.
+  Pass bar on TEST: mean return > 0 at 1¢ with 95 % CI excluding 0 (cluster = series), ≥ 300 games. Both variants reported.
