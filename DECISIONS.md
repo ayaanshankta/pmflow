@@ -185,3 +185,10 @@ reaction measurement (reaction.py, test_reaction.py copied at newsflow b4f8f31).
   apart (p90 14.7 h). Tail cases have impossible prices (two legs both at VWAP 0.99). Cleanest cut (O in [0.02, 0.2),
   first leg resolves > 2 d out, all legs in [0.02, 0.98]): +0.38% [+0.27, +0.50] per basket, n = 790.
   Verdict: a small overround (~0.4-1% per basket) is plausible; the +3.9% headline is not. Needs simultaneous quotes.
+
+## 2026-10-29 — B14-B17 results (research/behavioral-wallets-result.md)
+- B14 bug fixed before reading B14: px day key used //1e9 on a datetime64[s] (no paper positions found). Re-run.
+- B17 post-hoc variant added after the first run showed the mechanical sign; labelled POST-HOC in the output.
+- B15 no useful persistence; B16 prediction fails; B14 mixed; B17 no effect after the mechanical fix.
+- Desktop: PC crashed 2026-10-16 03:27 local; pmflow stack down since 2026-10-16 08:26:04 UTC. Restart requested
+  after the B20-forward sets_check run.
