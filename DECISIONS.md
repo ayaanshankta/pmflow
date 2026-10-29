@@ -229,3 +229,7 @@ reaction measurement (reaction.py, test_reaction.py copied at newsflow b4f8f31).
   2025 is n.s. Calibration: Yes overpriced ~3-7 pts at every price level, sports calibrated. -> F1 forward test.
 - Archive has no data after 2026-04-28 (checked HF listing), so no untouched archive period remains.
 - Tried so far this round: ~114 + ~40 maker/herd/no-split cells = ~155.
+- 2026-10-29 desktop: universe rebuilt (cap 300; 4 complete exclusive families, 2 ladders), recorder restarted 19:52 UTC
+  conn_id 73, healthy; supervisor task pmflow-stack live (66a3085); F1 daily 14:00 UTC + weekly settle tasks live.
+  F1 fixes 0cfecbb (backlog ids excluded; dedupe within a scan). Desktop backlog: f1_backlog_desktop_2026-10-29.csv
+  (187 rows, 185 unique). The desktop is the only F1 scanner; confirmatory entries start 2026-10-30 14:00 UTC.
