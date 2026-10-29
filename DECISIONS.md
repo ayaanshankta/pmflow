@@ -180,3 +180,8 @@ reaction measurement (reaction.py, test_reaction.py copied at newsflow b4f8f31).
   ceiling O/(k-1-O).
 - Open question: Monday VWAP is not simultaneous across legs, and selecting on O selects that noise. Verifier dispatched.
   The real check is simultaneous order-book quotes on whole families (pmflow result 6 saw none on one family).
+- Verifier (Sonnet, own code): n = 3,197 and +3.88% reproduce; no code bug; completeness uses no outcomes; legs exclusive in 99.7%.
+  Upstream look-ahead: p_mon_vwap covers all of Monday after T, not truncated at res_ts, and legs fill a median 3.2 h
+  apart (p90 14.7 h). Tail cases have impossible prices (two legs both at VWAP 0.99). Cleanest cut (O in [0.02, 0.2),
+  first leg resolves > 2 d out, all legs in [0.02, 0.98]): +0.38% [+0.27, +0.50] per basket, n = 790.
+  Verdict: a small overround (~0.4-1% per basket) is plausible; the +3.9% headline is not. Needs simultaneous quotes.
