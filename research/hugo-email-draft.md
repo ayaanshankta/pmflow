@@ -23,7 +23,8 @@ at outcomes, tuned on 2023–24 only, and ran each test once on 2025–26. Short
 
 For a reference index, the practical implications I'd draw: de-bias raw Yes prices slightly, normalise multi-outcome
 fields to sum to 1, and treat thin binary markets with the most suspicion. Happy to share the write-ups or code if
-any of it is useful. I'm also now testing in-game reactions and settlement lag.
+any of it is useful. (One more: after games end, decided props trade within ~0.1-0.3c of $1, so settlement lag is
+not an opportunity; the big post-game discounts are all genuine resolution risk like stat corrections.)
 
 Best,
 Ayaan
