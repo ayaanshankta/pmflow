@@ -133,3 +133,10 @@ game, the market prices the next game as if the last one were the new normal.
     market only overreacts if the price moves more than this.
   - S7 entry rule: bad → buy over, great → buy under. The threshold k ∈ {0.5, 1.0, 1.5} (|z_n| ≥ k) is picked on
     development by mean return; all three are reported on TEST. Pass bar unchanged.
+
+## Planned next (2026-10-29, Ayaan's idea; recorded before any in-play or post-game prop trade was examined; full rules come before running)
+- **B8 In-game overreaction:** during game n+1, does the over price fall further after a cold start than the player's
+  rest-of-game distribution justifies? Needs in-game stats by wall-clock time (candidate: Kaggle `deocheng/nba-data-1946-2026`
+  play-by-play; usable only if it carries wall-clock or the game clock can be mapped to real time reliably).
+- **B9 Settlement lag:** after the final whistle, how far below 1 (or above 0) do decided props trade before resolution,
+  for how long, and with how much size? A mechanical gap, not a bias; measured from fills after the game's end.
