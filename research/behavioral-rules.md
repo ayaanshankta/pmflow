@@ -236,3 +236,23 @@ Wallet tests (new pass `behav_wallets.py` over both layers; maker and taker addr
   Pass bar as round 2 (TEST mean > 0 at 1¢ with week-clustered CI excluding 0, >= 300 trades, > 0 at MonVWAP + 1¢).
 - Known weakness: about 65 TEST weeks, so low power; a null is weak evidence.
 - Contamination: B12 showed favourites/longshot premia by horizon on TEST, never split by loss week.
+
+## B20 (2026-10-29, written before any computation): multi-outcome overround at an achievable price
+- **Basket.** A neg-risk event (nr_id) at snapshot T. Legs = its markets present at T. Complete = the legs at T are
+  every condition_id of that nr_id seen anywhere in the snapshot table with res_ts > T (a live trader sees the full
+  leg list from the API; outcomes are not used). Incomplete event-snapshots are excluded; the count is reported.
+- Overround O = sum of leg Yes prices − 1.
+- **S20 No basket** (O >= threshold): buy one No share of every leg. Cost = Σ(1 − p_i + slip_i), payout = Σ(1 − Y_i).
+  Return = payout / cost − 1 (per $ of capital), plus the median days held to the last leg's resolution.
+- **S20b Yes basket** (O <= −threshold): buy one Yes share of every leg. Cost = Σ(p_i + slip_i), payout = ΣY_i.
+- Thresholds 0.02, 0.05, 0.10. First qualifying snapshot per event.
+- Slippage per leg: 1¢ when the leg's price is in [0.05, 0.95], 0.1¢ outside it (tick size there is 0.001). Also
+  reported with zero slippage.
+- Entries: snapshot price (last fill) and Monday VWAP per leg (event excluded if any leg lacks a Monday VWAP;
+  coverage reported). Monday VWAP is the executable check.
+- ΣY ≠ 1 at resolution (no winner among the legs, or ties) is kept, and how often it happens is reported.
+- Pass bar as round 2: TEST mean > 0 at slippage, week-clustered CI excluding 0, >= 300 events, and > 0 at Monday
+  VWAP + slippage. DEV is 2023-12-22..2024-12-30 (the multi layer starts 2023-12-22).
+- Priors and contamination: B2 showed multi-outcome legs overpriced, and the S1 verifier showed the neg-risk half
+  of fade-Yes losing at Monday VWAP (single legs, not baskets). Result 6 of pmflow (live quotes, one family) saw no
+  complete-set mispricing. Expected result: overround is mostly stale tail prices and is not achievable.
