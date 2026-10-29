@@ -57,11 +57,11 @@ def scan():
     OUT.mkdir(parents=True, exist_ok=True)
     seen = set()
     if ENTRIES.exists():
-        with ENTRIES.open() as f:
+        with ENTRIES.open(encoding="utf-8") as f:
             seen = {r["condition_id"] for r in csv.DictReader(f)}
     rows = candidates(u.fetch_events(), u.sports_tag_ids(), seen)
     new = not ENTRIES.exists()
-    with ENTRIES.open("a", newline="") as f:
+    with ENTRIES.open("a", newline="", encoding="utf-8") as f:  # utf-8: Windows default cp1252 cannot write some questions
         w = csv.DictWriter(f, FIELDS)
         if new:
             w.writeheader()
@@ -70,7 +70,7 @@ def scan():
 
 
 def settle():
-    with ENTRIES.open() as f:
+    with ENTRIES.open(encoding="utf-8") as f:
         ents = list(csv.DictReader(f))
     out = []
     for i in range(0, len(ents), 50):  # one request per 50 markets
@@ -89,7 +89,7 @@ def settle():
             v_no = px[outs.index("No")]
             out.append({**e, "v_no": v_no, "ret": v_no / float(e["no_ask"]) - 1, "closed_time": m.get("closedTime")})
     if out:
-        with SETTLED.open("w", newline="") as f:
+        with SETTLED.open("w", newline="", encoding="utf-8") as f:
             w = csv.DictWriter(f, list(out[0])); w.writeheader(); w.writerows(out)
     rets = sorted(float(o["ret"]) for o in out)
     n = len(rets)
