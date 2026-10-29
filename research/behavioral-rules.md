@@ -67,3 +67,15 @@ S1 "Fade Yes in thin markets": at each snapshot, in a Yes/No market in the lowes
 Rules committed before the pipeline is run (cite this file's blob hash in the result file). Development looks are allowed
 for bug fixes and the CPI slug rule; any change after development results is listed with its reason. No variant is dropped.
 Paper only: the venue is closed to US persons.
+
+## B3 addendum: CPI slug rule and method (2026-10-29, written before any CPI price was computed; dev look was slug names only)
+- Releases: the 41 BLS CPI releases 2022-11-10..2026-04-10 (bls.gov archived release links), 08:30 ET. Reference month =
+  previous month, except 2025-10-24 → September 2025 and 2025-12-18 → November 2025 (shutdown).
+- Ladders (see `behav_cpi.py` `rules()`): y/y brackets `will-annual-inflation-increase-by-X[-or-more|less]-in-<month>`;
+  m/m brackets `will-monthly-inflation-increase-by-X…-in-<month>` and `us-inflation-X…-from-<prev>-to-<month>-<year>`;
+  m/m thresholds `will-us-inflation-be-greater-than-X-from-<prev>-to-<month>-<year>`. Numeric suffixes allowed; markets must
+  trade in the 48 h before t0. Duplicate brackets: keep the one with a price at t0 − 24 h.
+- Price at τ = last fill at or before τ within 48 h. Implied mean: normalised bracket probabilities (≥ 3 priced brackets;
+  tails valued at their boundary); thresholds converted to bracket mass on a 0.1 grid after enforcing monotonicity.
+  Releases with bracket price sums outside [0.8, 1.25] or ambiguous winners are reported but excluded from the fit.
+- Actual = the resolved winner; prior = the previous release's actual for the same measure. The fit is unchanged from B3.
