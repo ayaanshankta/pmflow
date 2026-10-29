@@ -216,3 +216,16 @@ reaction measurement (reaction.py, test_reaction.py copied at newsflow b4f8f31).
   the per-leg fee on 7-12 legs removes it; fee-clearing episodes lasted 0.1-10 s.
 - Reading: the archive's B20 overround is mostly what fees and simultaneity take away. Weak evidence (66 h, quiet).
 - Recorder restarted 18:23:57 UTC on a stale universe (178/300 markets ended); rebuild at cap 300 requested.
+- Maker edge (behav_maker.py on behav_bars.py, all 2022-11..2026-04, fees ignored): makers earn +0.35% [+0.07, +0.62]
+  per taker $ overall; +1.7% in < $100/day market-days (tiny capacity), +1.0% at VWAP 0.3-0.7, +1.1% at 7-30 days.
+  2025-26 cell ($1k-100k/day, VWAP 0.3-0.7, 1-30 d): +1.39% [+0.65, +2.11] on ~$0.86M/day; 2023-24 same cell n.s.
+  Makers LOSE at VWAP 0.7-0.9 (-1.1%, both periods). One-sided taker flow (> 50% net) -> makers +3.4% (Yes herd) /
+  +1.1% (No herd); balanced -2.2%.
+- Herd fade at next open (behav_herd.py): no better than buying No after any liquid day (same week & price bin diff
+  +2.1 [-5.9, +9.9] on TEST). Not a separate effect.
+- Generic buy-No at next open: first version bucketed by ACTUAL resolution time (look-ahead: early Yes resolutions leave
+  the long bucket) - discarded. With scheduled close: binary non-sports non-crypto +9.1 / +11.3 / +13.9% (DEV / 2025 /
+  2026), but top 1% of trades = 72-87% of the return; trimmed +0.9 / +2.0 / +3.6% n.s.; clustered by resolution week
+  2025 is n.s. Calibration: Yes overpriced ~3-7 pts at every price level, sports calibrated. -> F1 forward test.
+- Archive has no data after 2026-04-28 (checked HF listing), so no untouched archive period remains.
+- Tried so far this round: ~114 + ~40 maker/herd/no-split cells = ~155.
