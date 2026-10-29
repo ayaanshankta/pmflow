@@ -18,3 +18,13 @@ behav_b19.py, behav_b20.py. Log: data/behav/wallet_analyze.log. Fees ignored; Pn
 - B15 is not a copy-trading test, but the obvious copy rule (follow last year's best) would have done worse than average.
 - B20-forward: the desktop recorder was down 2026-10-16 08:26 UTC to its restart (PC crash), so only ~66 h of
   whole-family quotes exist (2026-10-13 14:16 to 10-16 08:26). Results to be appended.
+
+## Verification (Sonnet verifier, own code, 2026-10-29)
+- B15 and B16 headline numbers reproduce (to within 0.05 pp; small drift from address case-merging).
+- PnL formula and p_event mapping correct; no fills double-counted across the two archive layers (27 local days).
+  About 2.3% of rows within a layer are exact duplicates (no tx hash to tell repeats from copies); zero-sum, so noise.
+- B15 caveat: the top decile's underperformance is much smaller $-weighted (−1.1% vs +0.4% for all, diff −1.55 pp
+  [−3.37, −0.09]) than in equal-weighted means (−6.3% vs −3.0%). Direction holds in every size quintile.
+- B14 caveats: a sale at exactly average cost counts as a loss (inflates PLR, conservative for the prediction);
+  realized events are per fill but paper events per position-day, so bot wallets dominate the pooled numbers.
+  Report B14 as mixed, not as a disposition effect.
