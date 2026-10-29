@@ -32,19 +32,30 @@ RELEASES = ["2022-11-10", "2022-12-13", "2023-01-12", "2023-02-14", "2023-03-14"
 # release reported September and 2025-12-18 reported November (no October 2025 CPI).
 REF_OVERRIDE = {"2025-10-24": (2025, 9), "2025-12-18": (2025, 11)}
 
-NUM = r"(negative-)?(\d+)pt(\d+)"
+NUM = r"(negative-)?(\d+)(?:pt(\d+))?"
 TAIL = r"(-or-(?:more|less|higher|lower|above|below))?"
 SUFFIX = r"(?:-[\d-]+)?$"
+ABBR = {m: m[:3] for m in MON} | {"september": "sept?"}
+
+
+def mon(i):
+    """Full or 3-letter month name, as a regex group (slugs use both)."""
+    m = MON[i]
+    return f"(?:{m}|{ABBR[m]})"
 
 
 def rules(ref_y, ref_m):
     """Slug patterns -> (kind, measure). kind: 'bracket' (mutually exclusive) or 'gt' (P(value > x))."""
-    m, pm = MON[ref_m - 1], MON[(ref_m - 2) % 12]
+    m, pm = mon(ref_m - 1), mon((ref_m - 2) % 12)
+    yr = rf"(?:-{ref_y - (ref_m == 1)})?"  # 'from-december-2022-to-january-2023': optional year on the prior month
     return [
-        (re.compile(rf"^will-annual-inflation-increase-by-{NUM}{TAIL}-in-{m}{SUFFIX}"), "bracket", "yoy"),
-        (re.compile(rf"^will-monthly-inflation-increase-by-{NUM}{TAIL}-in-{m}{SUFFIX}"), "bracket", "mom"),
-        (re.compile(rf"^us-inflation-{NUM}{TAIL}-from-{pm}-to-{m}-{ref_y}{SUFFIX}"), "bracket", "mom"),
-        (re.compile(rf"^will-us-inflation-be-greater-than-{NUM}-from-{pm}-to-{m}-{ref_y}{SUFFIX}"), "gt", "mom"),
+        (re.compile(rf"^will-annual-inflation-increase-by-{NUM}{TAIL}-in-{m}{SUFFIX}", re.I), "bracket", "yoy"),
+        (re.compile(rf"^will-inflation-increase-by-{NUM}{TAIL}-in-{m}{SUFFIX}", re.I), "bracket", "yoy"),
+        (re.compile(rf"^will-us-annual-inflation-be-{NUM}{TAIL}-in-{m}{SUFFIX}", re.I), "bracket", "yoy"),
+        (re.compile(rf"^annual-inflation-above-{NUM}-in-{m}{SUFFIX}", re.I), "gt", "yoy"),
+        (re.compile(rf"^will-monthly-inflation-increase-by-{NUM}{TAIL}-in-{m}{SUFFIX}", re.I), "bracket", "mom"),
+        (re.compile(rf"^us-inflation-{NUM}{TAIL}-from-{pm}{yr}-to-{m}-{ref_y}{SUFFIX}", re.I), "bracket", "mom"),
+        (re.compile(rf"^will-us-inflation-be-(?:greater|more)-than-{NUM}-from-{pm}{yr}-to-{m}-{ref_y}{SUFFIX}", re.I), "gt", "mom"),
     ]
 
 
@@ -52,7 +63,7 @@ def parse(slug, ref_y, ref_m):
     for rx, kind, measure in rules(ref_y, ref_m):
         g = rx.match(slug)
         if g:
-            neg, a, b = g.group(1), g.group(2), g.group(3)
+            neg, a, b = g.group(1), g.group(2), g.group(3) or "0"
             val = (-1 if neg else 1) * float(f"{a}.{b}")
             tail = (g.group(4) or "") if kind == "bracket" else ""
             side = "hi" if re.search("more|higher|above", tail) else "lo" if tail else ""

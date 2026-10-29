@@ -79,3 +79,8 @@ Paper only: the venue is closed to US persons.
   tails valued at their boundary); thresholds converted to bracket mass on a 0.1 grid after enforcing monotonicity.
   Releases with bracket price sums outside [0.8, 1.25] or ambiguous winners are reported but excluded from the fit.
 - Actual = the resolved winner; prior = the previous release's actual for the same measure. The fit is unchanged from B3.
+- **Slug-rule fix, 2026-10-29 (before any CPI implied value, fit or result was printed):** the first run's log of
+  unmatched slug NAMES showed variants the rule missed: "more-than" thresholds, a year on the prior month, 3-letter and
+  mixed-case months, integer values without "pt", and 2024 y/y forms (`annual-inflation-above-X`, `will-inflation-increase-by-X`,
+  `will-us-annual-inflation-be-X`). The run was stopped and the rule widened; `annual-inflation-under-X` (one-sided, single
+  market) stays out. Unit cases for each form are in the commit.
