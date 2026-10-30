@@ -3,6 +3,7 @@ markets on the first daily scan in which they trade >= $1,000 in 24 h, at the li
 
 Run once a day:  python forward_no.py          appends new entries to data/forward/f1_entries.csv
 Settle:          python forward_no.py settle   writes data/forward/f1_settled.csv and prints the running result
+F2:              python forward_no.py f2       settles the F2 subset (deadline markets, research/behavioral-rules.md "F2")
 Paper only; Gamma public endpoints at one page per request (well under its stated limits).
 """
 import csv
@@ -72,9 +73,7 @@ def scan():
     print(f"{dt.datetime.now(dt.timezone.utc):%Y-%m-%d %H:%M} new entries {len(rows)}, total {n0 + len(rows)}")
 
 
-def settle():
-    with ENTRIES.open(encoding="utf-8") as f:
-        ents = list(csv.DictReader(f))
+def resolve(ents):
     out = []
     for i in range(0, len(ents), 50):  # one request per 50 markets
         ids = [e["condition_id"] for e in ents[i:i + 50]]
@@ -91,6 +90,13 @@ def settle():
                 continue
             v_no = px[outs.index("No")]
             out.append({**e, "v_no": v_no, "ret": v_no / float(e["no_ask"]) - 1, "closed_time": m.get("closedTime")})
+    return out
+
+
+def settle():
+    with ENTRIES.open(encoding="utf-8") as f:
+        ents = list(csv.DictReader(f))
+    out = resolve(ents)
     if out:
         with SETTLED.open("w", newline="", encoding="utf-8") as f:
             w = csv.DictWriter(f, list(out[0])); w.writeheader(); w.writerows(out)
@@ -98,6 +104,37 @@ def settle():
     n = len(rets)
     print(f"entries {len(ents)}, settled {n}" + (f", mean {sum(rets) / n:+.4f}, trimmed-top-1% mean "
           f"{sum(rets[:n - max(1, n // 100)]) / max(1, n - max(1, n // 100)):+.4f}" if n else ""))
+
+
+DEADLINE = re.compile(r"-by-|-before-|-in-20\d\d")
+
+
+def f2_rows(ents):
+    """Earliest row per market among F2-eligible rows: deadline slug, >= 30 days left, Yes bid in [0.50, 0.95)."""
+    out, seen = [], set()
+    for e in sorted(ents, key=lambda e: e["entered_utc"]):
+        left = dt.datetime.fromisoformat(e["end_date"].replace("Z", "+00:00")) - dt.datetime.fromisoformat(e["entered_utc"]) if e["end_date"] else None
+        if e["condition_id"] in seen or not DEADLINE.search(e["slug"] or "") or not left or left.days < 30 or not 0.5 <= float(e["yes_bid"]) < 0.95:
+            continue
+        seen.add(e["condition_id"]); out.append(e)
+    return out
+
+
+def f2():
+    ents = []
+    for p in sorted(OUT.glob("f1_backlog*.csv")) + [ENTRIES]:
+        if p.exists():
+            with p.open(encoding="utf-8") as f:
+                ents += [{**r, "source": "backlog" if "backlog" in p.name else "confirmatory"} for r in csv.DictReader(f)]
+    rows = f2_rows(ents)
+    out = resolve(rows)
+    if out:
+        with (OUT / "f2_settled.csv").open("w", newline="", encoding="utf-8") as f:
+            w = csv.DictWriter(f, list(out[0])); w.writeheader(); w.writerows(out)
+    for src in ("backlog", "confirmatory", None):
+        r = [float(o["ret"]) for o in out if src in (None, o["source"])]
+        print(f"F2 {src or 'all'}: eligible {sum(src in (None, e['source']) for e in rows)}, settled {len(r)}"
+              + (f", mean {sum(r) / len(r):+.4f}, No wins {sum(float(o['v_no']) == 1 for o in out if src in (None, o['source']))}" if r else ""))
 
 
 def _selfcheck():
@@ -112,8 +149,11 @@ def _selfcheck():
     assert [r["condition_id"] for r in rows] == ["c1"] and rows[0]["no_ask"] == 0.70, rows
     assert candidates(ev, set(), {"c1"}) == []
     assert len(candidates(ev + ev, set(), set())) == 1  # same market under two events
+    ok = dict(entered_utc="2026-10-30T14:00:00+00:00", condition_id="d1", slug="x-by-june-30", end_date="2027-06-30T00:00:00Z", yes_bid="0.6")
+    assert [r["condition_id"] for r in f2_rows([ok, {**ok, "condition_id": "d2", "slug": "x-wins"}, {**ok, "condition_id": "d3", "yes_bid": "0.4"},
+                                                 {**ok, "condition_id": "d4", "end_date": "2026-11-15T00:00:00Z"}, {**ok, "entered_utc": "2026-10-31T14:00:00+00:00"}])] == ["d1"]
     print("selfcheck ok")
 
 
 if __name__ == "__main__":
-    {"settle": settle, "check": _selfcheck}.get(sys.argv[1] if len(sys.argv) > 1 else "", scan)()
+    {"settle": settle, "f2": f2, "check": _selfcheck}.get(sys.argv[1] if len(sys.argv) > 1 else "", scan)()

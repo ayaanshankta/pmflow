@@ -233,3 +233,14 @@ reaction measurement (reaction.py, test_reaction.py copied at newsflow b4f8f31).
   conn_id 73, healthy; supervisor task pmflow-stack live (66a3085); F1 daily 14:00 UTC + weekly settle tasks live.
   F1 fixes 0cfecbb (backlog ids excluded; dedupe within a scan). Desktop backlog: f1_backlog_desktop_2026-10-29.csv
   (187 rows, 185 unique). The desktop is the only F1 scanner; confirmatory entries start 2026-10-30 14:00 UTC.
+
+## 2026-10-30 open hunt pass 2 (daily bars; research/hunt/, data/behav/hunt.log)
+- 86 cells in hunt.py (daily jumps/drops, attention spikes, deadline x time-left x price, market types, age,
+  weekday, longshots; DEV and 2025-26 side by side) + ~10 in the deadline dig. Running count ~250.
+- Noise: jumps/spikes/weekday/age/longshot cells sit at the generic Yes overpricing (~+3 pts) or below; buying Yes
+  after a drop loses (prices keep sliding ~2 pts in 7 days, under the 2c round trip).
+- Survivor: long-dated deadline markets ("by"/"before"/"in 20xx", >= 30 d to scheduled close, Yes 0.50-0.95):
+  edge +13 pts [+9, +17] (cluster = event), n = 733, every year positive (2023 +18, 2024 +26, 2025 +9, 2026 +18),
+  every price band, ex-geopolitics +10 pts. Res-week clustering: return CI -6% .. +86% (shared deadlines).
+  Reading: planning-fallacy / salience optimism that the thing happens on time. Pre-registered as F2 (forward subset
+  of F1 rows, backlog included); 22 live backlog markets already qualify on the Mac backlog.
