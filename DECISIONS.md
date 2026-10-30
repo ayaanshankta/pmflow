@@ -254,3 +254,8 @@ reaction measurement (reaction.py, test_reaction.py copied at newsflow b4f8f31).
 - 2026-10-30 F1 first confirmatory scan 14:00 UTC: 47 entries (0 overlap with backlogs); F2 eligible 29 (22 backlog + 7).
   Recorder 10-29 19:52 .. 10-30 16:00: 37 reconnects (25 x 1013), ~2.5 s each; 410 s without rows in 20.1 h (0.6%);
   one 142 s gap at 15:34 UTC was a machine-wide DNS/network drop. No change; flag only gaps > 10 min, > 10 reconnects/h.
+- 2026-10-30 F2 early-exit drift (research/hunt/dl_drift.py, data/behav/dl_drift.log; 12 cells; count ~262). Exit at the
+  close k days after entry, 1c each way. All: 14 d +4.7 pts, 30 d +6.9 (event CI excludes 0; res-week CI includes 0).
+  Dropping 2026-01-01: 14 d +3.0, 30 d +4.2 (event-significant only); dropping 01-01 and 04-01: +2.0 / +2.2, n.s.
+  Same story as hold-to-resolution: Yes drifts down, but mostly in the year-/quarter-end cohorts. (A first run had a
+  timestamp-unit bug that marked nothing as resolved and inflated the drift; fixed before reading it.) No new rule.
