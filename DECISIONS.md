@@ -251,3 +251,6 @@ reaction measurement (reaction.py, test_reaction.py copied at newsflow b4f8f31).
   +6.7 [+2.4, +10.9] by event; without 2026-01-01 and 2026-04-01 +3.0 [-1.4, +7.6]; without top 3 res weeks +0.3.
   Effective n ~ distinct deadline dates, not markets. Honest archive summary: a deadline effect of ~+3..+13 pts,
   carried by a few year-/quarter-end cohorts.
+- 2026-10-30 F1 first confirmatory scan 14:00 UTC: 47 entries (0 overlap with backlogs); F2 eligible 29 (22 backlog + 7).
+  Recorder 10-29 19:52 .. 10-30 16:00: 37 reconnects (25 x 1013), ~2.5 s each; 410 s without rows in 20.1 h (0.6%);
+  one 142 s gap at 15:34 UTC was a machine-wide DNS/network drop. No change; flag only gaps > 10 min, > 10 reconnects/h.
