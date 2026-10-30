@@ -297,3 +297,6 @@ Wallet tests (new pass `behav_wallets.py` over both layers; maker and taker addr
   Pass: mean return > 0 with a 95% CI clustered by event (slug with dates/numbers stripped, first 4 words) excluding 0,
   AND point mean > 0 when clustered by resolution week, AND trimmed (top 1% removed) mean > 0.
   Also report: edge in points (No value - No ask), by price band, backlog vs confirmatory.
+- F2 amendment (2026-10-30, still before any F2 outcome; after the verifier's concentration finding): the verdict also
+  needs >= 10 distinct resolution dates among settled rows, and reports the mean clustered by resolution DATE with the
+  largest date dropped. If the largest date carries > 50% of total return, the verdict is "not confirmed" regardless.

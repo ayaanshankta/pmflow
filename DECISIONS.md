@@ -244,3 +244,10 @@ reaction measurement (reaction.py, test_reaction.py copied at newsflow b4f8f31).
   every price band, ex-geopolitics +10 pts. Res-week clustering: return CI -6% .. +86% (shared deadlines).
   Reading: planning-fallacy / salience optimism that the thing happens on time. Pre-registered as F2 (forward subset
   of F1 rows, backlog included); 22 live backlog markets already qualify on the Mac backlog.
+- 2026-10-30 verifier (Sonnet, own loader) on the F2 cell: WEAKENED. Reproduces +13.0 [+9.0, +17.3] by event, n = 733;
+  no look-ahead (next_open after signal day; close_at not overwritten; 720/733 labelled Yes, sign holds on those);
+  executable (next-day VWAP+1c +12.2; signal close+1c +11.8); control non-deadline +4.3 [+0.5, +7.8]. But clustering by
+  resolution DATE gives [-1.4, +25.0]: 2026-01-01 (85 markets, "by Dec 31 2025") is ~54% of total edge; without it
+  +6.7 [+2.4, +10.9] by event; without 2026-01-01 and 2026-04-01 +3.0 [-1.4, +7.6]; without top 3 res weeks +0.3.
+  Effective n ~ distinct deadline dates, not markets. Honest archive summary: a deadline effect of ~+3..+13 pts,
+  carried by a few year-/quarter-end cohorts.
