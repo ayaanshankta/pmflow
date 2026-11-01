@@ -300,3 +300,7 @@ Wallet tests (new pass `behav_wallets.py` over both layers; maker and taker addr
 - F2 amendment (2026-10-30, still before any F2 outcome; after the verifier's concentration finding): the verdict also
   needs >= 10 distinct resolution dates among settled rows, and reports the mean clustered by resolution DATE with the
   largest date dropped. If the largest date carries > 50% of total return, the verdict is "not confirmed" regardless.
+- F2 amendment 2 (2026-11-01, before the first settle; outcomes of the rows not looked at): the 10-30 amendment's dates become
+  SCHEDULED deadline dates (end_date), because No wins stack on the deadline by construction, so resolution-date
+  concentration selects on outcome. Verdict needs >= 10 distinct end_date days among settled rows, reports the mean
+  clustered by end_date month, and is "not confirmed" if the largest end_date day carries > 50% of total return.

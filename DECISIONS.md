@@ -259,3 +259,10 @@ reaction measurement (reaction.py, test_reaction.py copied at newsflow b4f8f31).
   Dropping 2026-01-01: 14 d +3.0, 30 d +4.2 (event-significant only); dropping 01-01 and 04-01: +2.0 / +2.2, n.s.
   Same story as hold-to-resolution: Yes drifts down, but mostly in the year-/quarter-end cohorts. (A first run had a
   timestamp-unit bug that marked nothing as resolved and inflated the drift; fixed before reading it.) No new rule.
+- 2026-11-01 F2 by deadline cohort (research/hunt/dl_cohort.py, data/behav/dl_cohort.log; 6 summaries; count ~268). Grouped
+  by SCHEDULED close month: 14/17 months with n >= 10 positive, equal-weight +9.4 pts [+3.8, +14.8]; 27/36 of all months;
+  non-quarter-end deadlines +9.7 [+2.2, +19.4] (cluster = month). Correction to the 10-30 verifier reading: grouping or
+  dropping by RESOLUTION date selects on the outcome. No wins resolve at the deadline and stack on one date; Yes wins
+  resolve early and scatter (verifier: Yes-rate 5% on 1st-of-month resolutions vs 88% elsewhere). So "without 2026-01-01"
+  (+6.7) and "without 01-01 and 04-01" (+3.0) remove winners only and understate the edge; the same holds for the early-exit
+  drop rows. Scheduled-deadline cohorts are the fair unit. Still post hoc: same data that picked the cell.
